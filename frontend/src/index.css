@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;500;600;700&display=swap');
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFFFF;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C4C4C4;
+  border-radius: 25px;
+}
+
+body{
+  min-height: 100vh;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  background-color: midnightblue;
+}
+
+html{
+  min-height: 100vh;
+  height: 100%;
+  width: 100%;
+}
+
+#root{
+  height: 100%;
+}
