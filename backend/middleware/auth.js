@@ -36,11 +36,13 @@ exports.authenticateToken = async (req, res, next) => {
 
         // Attach both the decoded token info and the full user object
         req.userId = decodedToken.userId;
+        req.userStatus = user.status;
         req.user = {
             id: user._id,
             email: user.email,
             firstName: user.firstName,
-            lastName: user.lastName
+            lastName: user.lastName,
+            status: user.status
         };
 
         next();

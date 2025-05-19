@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { createRequest, getUserRequests, deleteRequest } = require('../controllers/request_controllers');
+const { createRequest, getUserRequests, deleteRequest, getAllRequests, updateRequestStatus } = require('../controllers/request_controllers');
 const { authenticateToken } = require('../middleware/auth');
 const { validationResult } = require('express-validator');
 
@@ -56,5 +56,11 @@ router.get('/user/:email', authenticateToken, getUserRequests);
 
 // Delete a request
 router.delete('/:requestId', authenticateToken, deleteRequest);
+
+// Get all requests (admin only)
+router.get('/all', authenticateToken, getAllRequests);
+
+// Update request status (admin only)
+router.patch('/:requestId/status', authenticateToken, updateRequestStatus);
 
 module.exports = router; 

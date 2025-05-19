@@ -1,5 +1,6 @@
 const Request = require('../models/request_schema');
 const { validationResult } = require('express-validator');
+const User = require('../models/user_schema');
 
 // Create a new leave request
 exports.createRequest = async (req, res) => {
@@ -162,6 +163,100 @@ exports.deleteRequest = async (req, res) => {
         console.error('[Request] Error deleting request:', error);
         res.status(500).json({
             message: 'Failed to delete request',
+            details: error.message
+        });
+    }
+};
+
+// Get all requests with user information (admin only)
+exports.getAllRequests = async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.userStatus !== 'admin') {
+            return res.status(403).json({
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+
+        // Get all requests and populate user information
+        const requests = await Request.find()
+            .sort({ createdAt: -1 }) // Most recent first
+            .lean(); // Convert to plain JavaScript objects
+
+        // Get all unique user emails from requests
+        const userEmails = [...new Set(requests.map(req => req.email))];
+        
+        // Fetch all users in one query
+        const users = await User.find({ email: { $in: userEmails } })
+            .select('firstName lastName email')
+            .lean();
+
+        // Create a map of users by email for easy lookup
+        const userMap = users.reduce((map, user) => {
+            map[user.email] = user;
+            return map;
+        }, {});
+
+        // Attach user information to each request
+        const requestsWithUsers = requests.map(request => ({
+            ...request,
+            email: userMap[request.email] || { email: request.email }
+        }));
+
+        res.status(200).json({
+            message: 'All requests retrieved successfully',
+            requests: requestsWithUsers
+        });
+    } catch (error) {
+        console.error('[Request] Error getting all requests:', error);
+        res.status(500).json({
+            message: 'Failed to get requests',
+            details: error.message
+        });
+    }
+};
+
+// Update request status (admin only)
+exports.updateRequestStatus = async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.userStatus !== 'admin') {
+            return res.status(403).json({
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+
+        const { requestId } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        if (!['approved', 'rejected', 'pending'].includes(status)) {
+            return res.status(400).json({
+                message: 'Invalid status. Must be either "approved", "rejected", or "pending"'
+            });
+        }
+
+        // Find and update the request
+        const request = await Request.findById(requestId);
+        
+        if (!request) {
+            return res.status(404).json({
+                message: 'Request not found'
+            });
+        }
+
+        // Allow status updates for any request (including reversing decisions)
+        request.status = status;
+        await request.save();
+
+        res.status(200).json({
+            message: `Request status updated to ${status} successfully`,
+            request
+        });
+    } catch (error) {
+        console.error('[Request] Error updating request status:', error);
+        res.status(500).json({
+            message: 'Failed to update request status',
             details: error.message
         });
     }
