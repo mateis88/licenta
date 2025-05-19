@@ -42,14 +42,23 @@ const user_schema = new Schema({
         enum: ['regular', 'admin'],
         default: 'regular'
     },
+    // Optional profile fields
     profilePicture: {
-        type: String
+        type: String,
+        default: null
+    },
+    bio: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Bio cannot be longer than 500 characters']
+    },
+    phoneNumber: {
+        type: String,
+        trim: true,
+        match: [/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, 'Please enter a valid phone number']
     }
 }, {
     timestamps: true // Adds createdAt and updatedAt fields
 });
-
-// Add index for faster email lookups
-user_schema.index({ email: 1 });
 
 module.exports = mongoose.model('User', user_schema);

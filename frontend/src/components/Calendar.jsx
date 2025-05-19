@@ -88,11 +88,18 @@ const Calendar = () => {
         <Button
           key={`prev-${i}`}
           className="calendar-day adjacent-month"
-          variant="outlined"
+          variant="text"
           disabled
           sx={{
-            color: theme.palette.text.disabled,
-            borderColor: theme.palette.divider
+            color: 'transparent',
+            backgroundColor: 'transparent',
+            minWidth: '40px',
+            width: '40px',
+            height: '40px',
+            padding: 0,
+            '&:hover': {
+              backgroundColor: 'transparent'
+            }
           }}
         >
           {prevMonthDays - i}
@@ -110,11 +117,24 @@ const Calendar = () => {
           variant="outlined"
           onClick={() => handleDayClick(day)}
           sx={{
-            backgroundColor: isSelected ? '#1976d2' : isCurrent ? '#ff9800' : 'transparent',
-            color: isSelected ? 'white' : isCurrent ? 'white' : 'inherit',
-            borderColor: theme.palette.divider,
+            backgroundColor: isSelected ? theme.palette.primary.main : 
+              isCurrent ? theme.palette.warning.main : 
+              theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+            color: isSelected ? theme.palette.primary.contrastText : 
+              isCurrent ? theme.palette.warning.contrastText : 
+              theme.palette.text.primary,
+            borderColor: isSelected ? theme.palette.primary.main : 
+              isCurrent ? theme.palette.warning.main : 
+              theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.23)' : theme.palette.divider,
+            borderWidth: isSelected || isCurrent ? 2 : 1,
             '&:hover': {
-              backgroundColor: isSelected ? '#1565c0' : isCurrent ? '#f57c00' : 'rgba(25, 118, 210, 0.04)',
+              backgroundColor: isSelected ? theme.palette.primary.dark : 
+                isCurrent ? theme.palette.warning.dark : 
+                theme.palette.action.hover,
+              borderColor: isSelected ? theme.palette.primary.dark : 
+                isCurrent ? theme.palette.warning.dark : 
+                theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.5)' : theme.palette.primary.main,
+              borderWidth: 2
             },
           }}
         >
@@ -130,10 +150,18 @@ const Calendar = () => {
         <Button
           key={`next-${i}`}
           className="calendar-day adjacent-month"
-          variant="outlined"
+          variant="text"
           disabled
           sx={{
-            borderColor: theme.palette.divider
+            color: 'transparent',
+            backgroundColor: 'transparent',
+            minWidth: '40px',
+            width: '40px',
+            height: '40px',
+            padding: 0,
+            '&:hover': {
+              backgroundColor: 'transparent'
+            }
           }}
         >
           {i}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -11,12 +11,15 @@ import ratone from '../../assets/El_ratone.jpg';
 import starryNight from '../../assets/starry_night.jpg';
 import axios from 'axios';
 import * as Yup from 'yup';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { useSettings } from '../../contexts/SettingsContext';
 import HomeHeader from '../HomeHeader';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const { translations } = useSettings();
   const theme = useTheme();
   const t = translations.login;
@@ -28,6 +31,28 @@ const LoginPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [authError, setAuthError] = useState('');
+
+  useEffect(() => {
+    return () => {
+      setFormData({ email: '', password: '' });
+      setErrors({});
+      setAuthError('');
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      setFormData({ email: '', password: '' });
+      setErrors({});
+      setAuthError('');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const handleChange = (key, newValue) => {
     setFormData({ ...formData, [key]: newValue });
@@ -53,15 +78,25 @@ const LoginPage = () => {
   };
 
   const postLoginData = async () => {
-    await axios
-      .post('http://localhost:3000/login', formData)
-      .then((res) => {
-        console.log(res);
-        navigate('/home');
-      })
-      .catch((err) => {
+    try {
+      setAuthError('');
+      const response = await axios.post('http://localhost:3000/login', formData);
+      console.log(response);
+      
+      // Use the auth context to login
+      login(response.data.user, response.data.token);
+      
+      // Navigate to the attempted page or home
+      const from = location.state?.from?.pathname || '/home';
+      navigate(from, { replace: true });
+    } catch (err) {
         console.log(err);
-      });
+      if (err.response && err.response.status === 401) {
+        setAuthError(translations.login.errors.invalidCredentials);
+      } else {
+        setAuthError(translations.login.errors.serverError);
+      }
+    }
   };
 
   return (
@@ -174,6 +209,21 @@ const LoginPage = () => {
                   }}
                 />
               </Grid>
+              {authError && (
+                <Grid item xs={12}>
+                  <Typography 
+                    color="error" 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      textAlign: 'center',
+                      mt: 1
+                    }}
+                  >
+                    {authError}
+                  </Typography>
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <Button
                   variant="contained"

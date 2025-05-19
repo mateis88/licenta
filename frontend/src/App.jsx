@@ -1,61 +1,67 @@
-import { useState } from 'react'
-import LoginPage from './components/pages/LoginPage'
-import {BrowserRouter, Routes, Route, Navigate} from 'react-router'
-import HomePage from './components/pages/HomePage'
-import RegisterPage from './components/pages/RegisterPage'
-import ProfilePage from './components/pages/ProfilePage'
-import SettingsPage from './components/pages/SettingsPage'
-import RequestsPage from './components/pages/RequestsPage'
-import { SettingsProvider } from './contexts/SettingsContext'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
+import LoginPage from './components/pages/LoginPage';
+import RegisterPage from './components/pages/RegisterPage';
+import HomePage from './components/pages/HomePage';
+import ProfilePage from './components/pages/ProfilePage';
+import SettingsPage from './components/pages/SettingsPage';
+import RequestsPage from './components/pages/RequestsPage';
+import ManageRequestsPage from './components/pages/ManageRequestsPage';
+import { SettingsProvider } from './contexts/SettingsContext';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
+    <Router>
+      <AuthProvider>
     <SettingsProvider>
-      <BrowserRouter>
         <Routes>
-          <Route
-            path="/"
-            element={<Navigate to="/login" replace />}
-          />
-          <Route
-            path="/login"
-            element={
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%'
-                }}
-              >
-                <LoginPage/>
-              </div> 
-            }
-          />
-          <Route
-            path="/home"
-            element={<HomePage/>}
-          />
-          <Route
-            path="/home/requests"
-            element={<RequestsPage/>}
-          />
-          <Route
-            path="/register"
-            element={<RegisterPage/>}
-          />
-          <Route
-            path="/profile"
-            element={<ProfilePage/>}
-          />
-          <Route
-            path="/settings"
-            element={<SettingsPage/>}
-          />
+            {/* Public routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Protected routes */}
+            <Route path="/home" element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/:id" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/requests" element={
+              <ProtectedRoute>
+                <RequestsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/requests/new" element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/manage-requests" element={
+              <ProtectedRoute>
+                <ManageRequestsPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Redirect root to login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+
+            {/* Catch all other routes and redirect to login */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </BrowserRouter>
     </SettingsProvider>
-  )
+      </AuthProvider>
+    </Router>
+  );
 }
 
-export default App
+export default App;

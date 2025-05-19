@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -31,6 +31,37 @@ const RegisterPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    return () => {
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        birthDate: '',
+      });
+      setErrors({});
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        birthDate: '',
+      });
+      setErrors({});
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   const handleChange = (key, newValue) => {
     setFormData({ ...formData, [key]: newValue });

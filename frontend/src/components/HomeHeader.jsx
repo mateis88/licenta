@@ -13,13 +13,23 @@ import Button from '@mui/material/Button';
 import ratone from '../assets/El_ratone.jpg';
 import { useNavigate, useLocation } from 'react-router';
 import { useSettings } from '../contexts/SettingsContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '@mui/material/styles';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 function ResponsiveAppBar({ showSettings = true }) {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { translations } = useSettings();
+  const { logout, user } = useAuth();
+  const theme = useTheme();
   const t = translations.common;
+
+  // Determine if we should show settings based on the current path
+  const shouldShowSettings = location.pathname !== '/login' && location.pathname !== '/register';
 
   const settings = [
     { key: 'profile', label: t.profile },
@@ -38,9 +48,14 @@ function ResponsiveAppBar({ showSettings = true }) {
   const handleMenuClick = (setting) => {
     handleCloseUserMenu();
     if (setting === 'logout') {
+      logout();
       navigate('/login');
     } else if (setting === 'profile') {
-      navigate('/profile');
+      if (user && user.id) {
+        navigate(`/profile/${user.id}`);
+      } else {
+        console.error('User ID not available for profile navigation');
+      }
     } else if (setting === 'settings') {
       navigate('/settings');
     }
@@ -55,8 +70,19 @@ function ResponsiveAppBar({ showSettings = true }) {
     }
   };
 
+  // Get the first letter of the user's first name
+  const getInitials = () => {
+    if (user && user.firstName) {
+      return user.firstName.charAt(0).toUpperCase();
+    }
+    return '?';
+  };
+
+  // Check if user is admin
+  const isAdmin = user?.status === 'admin';
+
   return (
-    <AppBar position="static">
+    <AppBar position="static" color="primary" elevation={1}>
       <Container 
         maxWidth={false} 
         sx={{ 
@@ -64,7 +90,7 @@ function ResponsiveAppBar({ showSettings = true }) {
           width: '100%'
         }}
       >
-        <Toolbar disableGutters sx={{ justifyContent: showSettings ? 'space-between' : 'flex-start' }}>
+        <Toolbar disableGutters sx={{ justifyContent: shouldShowSettings ? 'space-between' : 'flex-start' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box
               component="img"
@@ -83,27 +109,84 @@ function ResponsiveAppBar({ showSettings = true }) {
               }}
             />
             {location.pathname === '/home' && (
+              <Box sx={{ 
+                display: { xs: 'none', md: 'flex' }, 
+                gap: 2,
+                ml: 4
+              }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/requests')}
+                  startIcon={<ListAltIcon />}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    px: 3,
+                    py: 1,
+                    borderWidth: 2,
+                    '&:hover': {
+                      borderWidth: 2,
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)'
+                    }
+                  }}
+                >
+                  {t.myRequests}
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/requests/new')}
+                  startIcon={<AddCircleOutlineIcon />}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    px: 3,
+                    py: 1,
+                    backgroundColor: theme.palette.secondary.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.secondary.dark
+                    }
+                  }}
+                >
+                  {t.newRequest}
+                </Button>
+                {isAdmin && (
               <Button
                 variant="contained"
-                onClick={() => navigate('/home/requests')}
+                    onClick={() => navigate('/manage-requests')}
+                    startIcon={<AdminPanelSettingsIcon />}
                 sx={{
-                  display: { xs: 'none', md: 'flex' },
-                  ml: 2
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      px: 3,
+                      py: 1,
+                      backgroundColor: theme.palette.error.main,
+                      '&:hover': {
+                        backgroundColor: theme.palette.error.dark
+                      }
                 }}
               >
-                {translations.common.myRequests}
+                    Manage requests
               </Button>
+                )}
+              </Box>
             )}
           </Box>
 
-          {showSettings && (
+          {shouldShowSettings && (
             <Box sx={{ 
               flexGrow: 0,
               ml: 'auto'
             }}>
               <Tooltip title={t.settings}>
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                  <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" />
+                  <Avatar 
+                    sx={{ 
+                      bgcolor: theme.palette.background.default,
+                      color: theme.palette.text.primary
+                    }}
+                  >
+                    {getInitials()}
+                  </Avatar>
                 </IconButton>
               </Tooltip>
               <Menu

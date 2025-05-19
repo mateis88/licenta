@@ -3,9 +3,13 @@ const {body} = require('express-validator');
 const User = require('../models/user_schema')
 const router = express.Router();
 const user_controllers = require("../controllers/user_controllers");
-const upload = require('../middleware/file-upload');
+const { authenticateToken } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 const path = require('path');
+const eventRoutes = require('./event_routes');
 
+// Serve static files from uploads directory
+router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 router.post("/login", 
     [
@@ -62,9 +66,63 @@ router.post("/register",
     user_controllers.register
 );
 
+// Token validation endpoint
+router.get("/validate-token", authenticateToken, async (req, res, next) => {
+    try {
+        console.log('[Router] Validating token for user:', req.userId);
+        
+        // If we get here, the token is valid (auth middleware would have thrown an error otherwise)
+        const user = await User.findById(req.userId).select('-password');
+        
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Transform user data to match login response format
+        const transformedUser = {
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            birthDate: user.birthDate,
+            status: user.status,
+            profilePicture: user.profilePicture,
+            bio: user.bio || '',
+            phoneNumber: user.phoneNumber || '',
+            address: {
+                street: user.address?.street || '',
+                city: user.address?.city || '',
+                state: user.address?.state || '',
+                country: user.address?.country || '',
+                zipCode: user.address?.zipCode || ''
+            }
+        };
+
+        console.log('[Router] Token validation successful for user:', transformedUser.email);
+
+        res.status(200).json({
+            valid: true,
+            user: transformedUser
+        });
+    } catch (err) {
+        console.error('[Router] Token validation error:', {
+            error: err.message,
+            stack: err.stack
+        });
+        
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
+});
+
 // Profile routes
-router.get("/profile/:userId", user_controllers.getProfile);
-router.put("/profile/:userId", 
+router.get("/profile/:id", authenticateToken, user_controllers.getProfile);
+router.put("/profile/:id", 
+    authenticateToken,
     [
         body('email')
             .optional()
@@ -90,9 +148,19 @@ router.put("/profile/:userId",
     ],
     user_controllers.updateProfile
 );
-router.put("/profile/:userId/picture", upload.single('image'), user_controllers.updateProfilePicture);
 
-// Serve uploaded files
-router.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Profile picture upload route
+router.post(
+    '/upload/profile-picture/:id',
+    authenticateToken,
+    upload.single('profilePicture'),
+    user_controllers.uploadProfilePicture
+);
+
+// Get birthdays on a specific date
+router.get("/birthdays/:month/:day", authenticateToken, user_controllers.getBirthdaysOnDate);
+
+// Event routes
+router.use('/events', eventRoutes);
 
 module.exports = router;
