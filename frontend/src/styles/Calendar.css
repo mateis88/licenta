@@ -87,10 +87,108 @@
     font-size: 0.875rem;
     padding: 0;
     font-family: 'Roboto Slab', serif;
+    transition: transform 0.2s ease;
+    border: none !important; /* Remove all borders */
   }
   
+  /* Weekend and holiday styles */
+  .calendar-day.weekend-holiday {
+    background-color: rgba(33, 150, 243, 0.1) !important; /* Light blue */
+    color: #1976d2 !important; /* Darker blue for text */
+  }
+  
+  /* Current day style - only yellow outline */
+  .calendar-day.current {
+    position: relative;
+  }
+  
+  /* Add yellow outline for current day using pseudo-element */
+  .calendar-day.current::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid #ffc107;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  /* Remove any background overrides for current day */
+  .calendar-day.current.approved-leave,
+  .calendar-day.current.weekend-holiday,
+  .calendar-day.current.holiday {
+    background-color: inherit !important;
+  }
+  
+  /* Ensure proper layering of styles */
+  .calendar-day.approved-leave.weekend-holiday {
+    background-color: rgba(33, 150, 243, 0.1) !important; /* Blue takes precedence */
+    color: #1976d2 !important; /* Darker blue for text */
+  }
+  
+  .calendar-day.current.approved-leave {
+    background-color: rgba(156, 39, 176, 0.1) !important; /* Keep purple background */
+    color: #7b1fa2 !important;
+  }
+  
+  .calendar-day.current.weekend-holiday {
+    background-color: rgba(33, 150, 243, 0.1) !important; /* Keep blue background */
+    color: #1976d2 !important;
+  }
+  
+  .calendar-day.current.holiday {
+    background-color: rgba(33, 150, 243, 0.1) !important; /* Keep blue background */
+    color: #1976d2 !important;
+  }
+  
+  /* Approved leave style */
+  .calendar-day.approved-leave {
+    background-color: rgba(156, 39, 176, 0.1) !important; /* Light purple */
+    color: #7b1fa2 !important; /* Darker purple for text */
+  }
+  
+  /* Selected day style */
+  .calendar-day.selected {
+    background-color: rgba(25, 118, 210, 0.1) !important;
+    position: relative;
+  }
+  
+  /* Add blue outline for selected day using pseudo-element */
+  .calendar-day.selected::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid #1976d2;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  
+  /* Adjacent month days */
   .adjacent-month {
     color: #aaa !important;
-    border-color: #ddd !important;
+    background-color: transparent !important;
+  }
+  
+  /* Hover effects for all days */
+  .calendar-day:hover {
+    transform: scale(1.05);
+    z-index: 1;
+    transition: transform 0.2s ease;
+  }
+  
+  /* Add specific rules for holiday days with approved leave */
+  .calendar-day.holiday.approved-leave {
+    background-color: rgba(33, 150, 243, 0.1) !important; /* Blue takes precedence */
+    color: #1976d2 !important;
+  }
+  
+  .calendar-day.holiday.approved-leave:hover {
+    background-color: rgba(33, 150, 243, 0.2) !important;
   }
   

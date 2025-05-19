@@ -78,6 +78,18 @@ function ResponsiveAppBar({ showSettings = true }) {
     return '?';
   };
 
+  // Get profile picture URL
+  const getProfilePicUrl = () => {
+    if (user?.profilePicture) {
+      // Remove any leading slash to avoid double slashes
+      const picturePath = user.profilePicture.startsWith('/') 
+        ? user.profilePicture.slice(1) 
+        : user.profilePicture;
+      return `http://localhost:3000/${picturePath}`;
+    }
+    return null;
+  };
+
   // Check if user is admin
   const isAdmin = user?.status === 'admin';
 
@@ -180,12 +192,13 @@ function ResponsiveAppBar({ showSettings = true }) {
               <Tooltip title={t.settings}>
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                   <Avatar 
+                    src={getProfilePicUrl()}
                     sx={{ 
                       bgcolor: theme.palette.background.default,
                       color: theme.palette.text.primary
                     }}
                   >
-                    {getInitials()}
+                    {!getProfilePicUrl() && getInitials()}
                   </Avatar>
                 </IconButton>
               </Tooltip>
