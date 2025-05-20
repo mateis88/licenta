@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Button, Slide, useTheme } from '@mui/material';
+import { Button, useTheme, Paper, Typography, Box, IconButton } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
 import InfoBox from './InfoBox';
 import '../styles/Calendar.css';
 import { useSettings } from '../contexts/SettingsContext';
@@ -29,10 +30,81 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Orthodox Easter dates for the next 10 years
+const orthodoxEasterDates = {
+  2024: { month: 4, day: 5 },  // May 5, 2024
+  2025: { month: 3, day: 20 }, // April 20, 2025
+  2026: { month: 3, day: 12 }, // April 12, 2026
+  2027: { month: 4, day: 2 },  // May 2, 2027
+  2028: { month: 3, day: 16 }, // April 16, 2028
+  2029: { month: 3, day: 8 },  // April 8, 2029
+  2030: { month: 4, day: 28 }, // April 28, 2030
+  2031: { month: 4, day: 13 }, // April 13, 2031
+  2032: { month: 4, day: 2 },  // May 2, 2032
+  2033: { month: 3, day: 24 }, // April 24, 2033
+};
+
+// Function to get Orthodox Easter date for a given year
+const getOrthodoxEaster = (year) => {
+  const easterDate = orthodoxEasterDates[year];
+  if (!easterDate) {
+    console.warn(`No Orthodox Easter date available for year ${year}`);
+    return null;
+  }
+  return new Date(year, easterDate.month, easterDate.day, 12, 0, 0);
+};
+
+// Function to get all Romanian holidays for a given year
+const getRomanianHolidays = (year) => {
+  console.log(`Getting holidays for year: ${year}`);
+  
+  // Helper function to create dates at noon to avoid timezone issues
+  const createDate = (y, m, d) => new Date(y, m, d, 12, 0, 0);
+  
+  const holidays = [
+    { date: createDate(year, 0, 1), name: 'Anul Nou' }, // New Year's Day
+    { date: createDate(year, 0, 24), name: 'Ziua Unirii Principatelor Române' }, // Union Day
+    { date: createDate(year, 4, 1), name: 'Ziua Muncii' }, // Labor Day
+    { date: createDate(year, 5, 1), name: 'Ziua Copilului' }, // Children's Day
+    { date: createDate(year, 7, 15), name: 'Adormirea Maicii Domnului' }, // Assumption of Mary
+    { date: createDate(year, 11, 1), name: 'Ziua Națională a României' }, // National Day
+    { date: createDate(year, 11, 25), name: 'Crăciunul' }, // Christmas Day
+    { date: createDate(year, 11, 26), name: 'A doua zi de Crăciun' } // Second Day of Christmas
+  ];
+
+  // Get Orthodox Easter and related holidays
+  const easterSunday = getOrthodoxEaster(year);
+  if (easterSunday) {
+    console.log('Easter Sunday:', easterSunday.toLocaleDateString());
+    
+    const goodFriday = new Date(easterSunday);
+    goodFriday.setDate(easterSunday.getDate() - 2);
+    
+    const easterMonday = new Date(easterSunday);
+    easterMonday.setDate(easterSunday.getDate() + 1);
+    
+    holidays.push(
+      { date: goodFriday, name: 'Vinerea Mare' },
+      { date: easterSunday, name: 'Paștele Ortodox' },
+      { date: easterMonday, name: 'A doua zi de Paște' }
+    );
+  }
+
+  // Log all holidays for debugging
+  console.log('All holidays:', holidays.map(h => ({
+    name: h.name,
+    date: h.date.toLocaleDateString()
+  })));
+
+  return holidays;
+};
+
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [showLegend, setShowLegend] = useState(false);
   const calendarRef = useRef(null);
   const infoBoxRef = useRef(null);
   const { translations } = useSettings();
@@ -55,7 +127,20 @@ const Calendar = () => {
   };
 
   const handleDayClick = (day) => {
-    setSelectedDay(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const today = new Date();
+    
+    // Set hours, minutes, seconds, and milliseconds to 0 for accurate date comparison
+    today.setHours(0, 0, 0, 0);
+    clickedDate.setHours(0, 0, 0, 0);
+    
+    // Only allow selection if the date is today or in the future
+    if (clickedDate >= today) {
+      setSelectedDay(clickedDate);
+    } else {
+      // If it's a past date, we'll still show the InfoBox but it will be in read-only mode
+      setSelectedDay(clickedDate);
+    }
   };
 
   const isSelectedDay = (day) => {
@@ -76,31 +161,35 @@ const Calendar = () => {
     );
   };
 
-  // List of public holidays (Romanian holidays for 2024)
-  const publicHolidays = [
-    { date: '2024-01-01', name: 'Anul Nou' },
-    { date: '2024-01-24', name: 'Ziua Unirii Principatelor Române' },
-    { date: '2024-04-01', name: 'Paștele Ortodox' },
-    { date: '2024-05-01', name: 'Ziua Muncii' },
-    { date: '2024-05-03', name: 'Ziua Copilului' },
-    { date: '2024-06-01', name: 'Ziua Copilului' },
-    { date: '2024-08-15', name: 'Adormirea Maicii Domnului' },
-    { date: '2024-11-30', name: 'Sfântul Andrei' },
-    { date: '2024-12-01', name: 'Ziua Națională a României' },
-    { date: '2024-12-25', name: 'Crăciunul' },
-    { date: '2024-12-26', name: 'A doua zi de Crăciun' }
-  ];
+  // Get holidays for the current year
+  const holidays = getRomanianHolidays(currentDate.getFullYear());
 
   // Check if a date is a public holiday
   const isPublicHoliday = (date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return publicHolidays.some(holiday => holiday.date === dateString);
+    // Create a date at noon for comparison to avoid timezone issues
+    const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+    
+    const isHoliday = holidays.some(holiday => {
+      const isMatch = holiday.date.getDate() === compareDate.getDate() &&
+        holiday.date.getMonth() === compareDate.getMonth() &&
+        holiday.date.getFullYear() === compareDate.getFullYear();
+      
+      if (isMatch) {
+        console.log('Found holiday match:', holiday.name, 'on', compareDate.toLocaleDateString());
+      }
+      return isMatch;
+    });
+    
+    return isHoliday;
   };
 
   // Get holiday name if date is a holiday
   const getHolidayName = (date) => {
-    const dateString = date.toISOString().split('T')[0];
-    const holiday = publicHolidays.find(h => h.date === dateString);
+    const holiday = holidays.find(h => 
+      h.date.getDate() === date.getDate() &&
+      h.date.getMonth() === date.getMonth() &&
+      h.date.getFullYear() === date.getFullYear()
+    );
     return holiday ? holiday.name : null;
   };
 
@@ -149,8 +238,57 @@ const Calendar = () => {
     });
   };
 
+  // Add this useEffect to fetch events
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!user?.email) return;
+      
+      try {
+        console.log('[Calendar] Fetching events for user:', user.email);
+        const response = await axios.get(
+          `http://localhost:3000/events/user/${user.email}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        console.log('[Calendar] Received events:', response.data.events);
+        setEvents(response.data.events || []);
+      } catch (err) {
+        console.error('[Calendar] Error fetching events:', err);
+      }
+    };
+
+    fetchEvents();
+  }, [user?.email]);
+
+  // Add this new function to check if a day has events
+  const hasEvents = (date) => {
+    console.log('[Calendar] Checking events for date:', date.toISOString());
+    console.log('[Calendar] Current events state:', events);
+    
+    const hasEvent = events.some(event => {
+      const eventDate = new Date(event.date);
+      console.log('[Calendar] Comparing with event date:', eventDate.toISOString());
+      const isMatch = eventDate.getDate() === date.getDate() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getFullYear() === date.getFullYear();
+      
+      if (isMatch) {
+        console.log('[Calendar] Found matching event:', event);
+      }
+      return isMatch;
+    });
+    
+    console.log('[Calendar] Has event:', hasEvent);
+    return hasEvent;
+  };
+
   const renderCalendarCells = () => {
     const cells = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 7; i++) {
       cells.push(
@@ -186,12 +324,15 @@ const Calendar = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      date.setHours(0, 0, 0, 0);
+      const isPastDate = date < today;
       const isSelected = isSelectedDay(day);
       const isCurrent = isCurrentDay(day);
       const isApprovedLeave = isApprovedLeaveDay(day);
       const isHoliday = isPublicHoliday(date);
       const isWeekendDay = isWeekend(day);
       const holidayName = getHolidayName(date);
+      const hasEvent = hasEvents(date);
       
       // Determine the cell's class based on its status
       const cellClass = [
@@ -200,7 +341,9 @@ const Calendar = () => {
         isCurrent ? 'current' : '',
         isApprovedLeave ? 'approved-leave' : '',
         (isWeekendDay || isHoliday) ? 'weekend-holiday' : '',
-        isHoliday ? 'holiday' : ''
+        isHoliday ? 'holiday' : '',
+        hasEvent ? 'has-event' : '',
+        isPastDate ? 'past-date' : ''
       ].filter(Boolean).join(' ');
 
       // Determine the cell's style based on its status
@@ -222,12 +365,19 @@ const Calendar = () => {
           className={cellClass}
           variant="outlined"
           onClick={() => handleDayClick(day)}
-          sx={cellStyle}
+          sx={{
+            ...cellStyle,
+            opacity: isPastDate ? 0.7 : 1,
+            cursor: isPastDate ? 'default' : 'pointer'
+          }}
           title={holidayName || ''}
         >
-          {day}
+          <span>{day}</span>
           {holidayName && (
             <span className="holiday-indicator" title={holidayName}>•</span>
+          )}
+          {hasEvent && (
+            <span className="event-indicator" title="Event">•</span>
           )}
         </Button>
       );
@@ -291,6 +441,94 @@ const Calendar = () => {
             <InfoBox date={selectedDay} onClose={() => setSelectedDay(null)} />
           )}
         </div>
+
+        {/* Info Button */}
+        <IconButton 
+          className="info-button"
+          onClick={() => setShowLegend(!showLegend)}
+          sx={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '20px',
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            }
+          }}
+        >
+          <InfoIcon />
+        </IconButton>
+
+        {/* Legend */}
+        {showLegend && (
+          <Paper 
+            className="calendar-legend"
+            elevation={3}
+            sx={{
+              position: 'fixed',
+              bottom: '80px',
+              left: '20px',
+              padding: '16px',
+              maxWidth: '300px',
+              backgroundColor: theme.palette.background.paper,
+              zIndex: 1000
+            }}
+          >
+            <Typography variant="h6" gutterBottom sx={{ fontFamily: '"Roboto Slab", serif' }}>
+              {t.legendTitle || 'Calendar Legend'}
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Weekend/Holiday */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Box className="legend-item weekend-holiday" />
+                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                  {t.weekendHoliday || 'Weekend/Holiday'}
+                </Typography>
+              </Box>
+
+              {/* Approved Leave */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Box className="legend-item approved-leave" />
+                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                  {t.approvedLeave || 'Approved Leave'}
+                </Typography>
+              </Box>
+
+              {/* Current Day */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Box className="legend-item current" />
+                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                  {t.currentDay || 'Current Day'}
+                </Typography>
+              </Box>
+
+              {/* Selected Day */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Box className="legend-item selected" />
+                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                  {t.selectedDay || 'Selected Day'}
+                </Typography>
+              </Box>
+
+              {/* Holiday Indicator */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Typography sx={{ color: '#1976d2', fontSize: '1.5rem', lineHeight: 1 }}>•</Typography>
+                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                  {t.holidayIndicator || 'Public Holiday'}
+                </Typography>
+              </Box>
+
+              {/* Event Indicator */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Typography sx={{ color: '#4caf50', fontSize: '1.5rem', lineHeight: 1 }}>•</Typography>
+                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                  {t.eventIndicator || 'Event'}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        )}
       </div>
     </ErrorBoundary>
   );

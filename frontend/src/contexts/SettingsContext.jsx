@@ -162,6 +162,11 @@ const translations = {
       failedToCreateEvent: 'Failed to create event',
       events: 'Events',
       noEvents: 'No events for this day',
+      eventNameRequired: 'Event name is required',
+      locationRequired: 'Location is required',
+      timeRequired: 'Start and end times are required',
+      endTimeAfterStart: 'End time must be after start time',
+      timeFormatHint: 'Use 24-hour format (HH:mm)',
     },
     login: {
       title: 'Welcome Back',
@@ -315,6 +320,11 @@ const translations = {
       failedToCreateEvent: 'Nu s-a putut crea evenimentul',
       events: 'Evenimente',
       noEvents: 'Nu există evenimente pentru această zi',
+      eventNameRequired: 'Numele evenimentului este obligatoriu',
+      locationRequired: 'Locația este obligatorie',
+      timeRequired: 'Orele de început și sfârșit sunt obligatorii',
+      endTimeAfterStart: 'Ora de sfârșit trebuie să fie după ora de început',
+      timeFormatHint: 'Folosiți format 24 ore (HH:mm)',
     },
     login: {
       title: 'Bine ai revenit',

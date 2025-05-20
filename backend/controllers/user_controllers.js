@@ -55,7 +55,9 @@ exports.login = async (req, res, next) => {
             status: user.status,
             profilePicture: user.profilePicture,
             bio: user.bio || '',
-            phoneNumber: user.phoneNumber || ''
+            phoneNumber: user.phoneNumber || '',
+            paidLeaveDays: user.paidLeaveDays,
+            lastLeaveUpdate: user.lastLeaveUpdate
         };
 
         console.log('Login response user data:', JSON.stringify(userResponse, null, 2));
@@ -141,7 +143,9 @@ exports.register = async (req, res, next) => {
                 firstName: result.firstName,
                 lastName: result.lastName,
                 birthDate: result.birthDate,
-                status: result.status
+                status: result.status,
+                paidLeaveDays: result.paidLeaveDays,
+                lastLeaveUpdate: result.lastLeaveUpdate
             }
         });
     } catch (err) {
@@ -158,7 +162,7 @@ exports.getProfile = async (req, res, next) => {
         const userId = req.params.id;
         
         console.log('[getProfile] Fetching profile for user:', userId);
-        
+    
         const user = await User.findById(userId).select('-password');
             if (!user) {
                 const error = new Error('User not found.');
@@ -187,6 +191,8 @@ exports.getProfile = async (req, res, next) => {
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
+            paidLeaveDays: user.paidLeaveDays,
+            lastLeaveUpdate: user.lastLeaveUpdate,
             address: address ? {
                 street: address.street || '',
                 city: address.city || '',
@@ -258,7 +264,7 @@ exports.updateProfile = async (req, res) => {
                 message: 'Not authorized to update this profile',
                 details: 'User can only update their own profile'
             });
-        }
+    }
 
         // Extract address fields from the request body
         const addressFields = req.body.address || {};
@@ -370,6 +376,8 @@ exports.updateProfile = async (req, res) => {
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
+            paidLeaveDays: user.paidLeaveDays,
+            lastLeaveUpdate: user.lastLeaveUpdate,
             address: {
                 street: userAddress.street || '',
                 city: userAddress.city || '',
@@ -383,7 +391,7 @@ exports.updateProfile = async (req, res) => {
             message: 'Profile updated successfully',
             user: userResponse,
             token
-        });
+            });
     } catch (error) {
         console.error('Error updating profile:', error);
         if (error.name === 'ValidationError') {
@@ -397,7 +405,7 @@ exports.updateProfile = async (req, res) => {
                 message: 'Invalid user ID format',
                 details: error.message
             });
-        }
+            }
         res.status(500).json({ 
             message: 'Error updating profile',
             details: error.message 
@@ -432,7 +440,7 @@ exports.uploadProfilePicture = async (req, res) => {
                 message: 'User ID is required',
                 details: 'Both URL parameter and token user ID must be present'
             });
-        }
+    }
 
         // Validate if the ID is a valid MongoDB ObjectId
         if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(tokenUserId)) {
@@ -468,10 +476,10 @@ exports.uploadProfilePicture = async (req, res) => {
             // Delete the uploaded file if user not found
             fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: 'User not found' });
-        }
+            }
 
         // Delete old profile picture if it exists
-        if (user.profilePicture) {
+            if (user.profilePicture) {
             const oldPicturePath = path.join(__dirname, '..', user.profilePicture);
             if (fs.existsSync(oldPicturePath)) {
                 fs.unlinkSync(oldPicturePath);
@@ -506,7 +514,9 @@ exports.uploadProfilePicture = async (req, res) => {
             status: updatedUser.status,
             profilePicture: updatedUser.profilePicture,
             bio: updatedUser.bio || '',
-            phoneNumber: updatedUser.phoneNumber || ''
+            phoneNumber: updatedUser.phoneNumber || '',
+            paidLeaveDays: updatedUser.paidLeaveDays,
+            lastLeaveUpdate: updatedUser.lastLeaveUpdate
         };
 
         console.log('Profile picture updated successfully:', {

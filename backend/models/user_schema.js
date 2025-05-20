@@ -42,6 +42,15 @@ const user_schema = new Schema({
         enum: ['regular', 'admin'],
         default: 'regular'
     },
+    paidLeaveDays: {
+        type: Number,
+        default: 21,
+        min: [0, 'Paid leave days cannot be negative']
+    },
+    lastLeaveUpdate: {
+        type: Date,
+        default: Date.now
+    },
     // Optional profile fields
     profilePicture: {
         type: String,
@@ -59,6 +68,23 @@ const user_schema = new Schema({
     }
 }, {
     timestamps: true // Adds createdAt and updatedAt fields
+});
+
+// Add a pre-save middleware to update paid leave days annually
+user_schema.pre('save', async function(next) {
+    const now = new Date();
+    const lastUpdate = this.lastLeaveUpdate || this.createdAt;
+    
+    // Check if a year has passed since the last update
+    const yearsSinceLastUpdate = now.getFullYear() - lastUpdate.getFullYear();
+    
+    if (yearsSinceLastUpdate > 0) {
+        // Add 21 days for each year that has passed
+        this.paidLeaveDays += (21 * yearsSinceLastUpdate);
+        this.lastLeaveUpdate = now;
+    }
+    
+    next();
 });
 
 module.exports = mongoose.model('User', user_schema);

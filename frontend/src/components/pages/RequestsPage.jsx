@@ -21,7 +21,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Button
+  Button,
+  Card,
+  CardContent,
+  Grid
 } from '@mui/material';
 import HomeHeader from '../HomeHeader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,6 +32,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import axios from 'axios';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { format } from 'date-fns';
 
 const RequestsPage = () => {
@@ -160,6 +164,40 @@ const RequestsPage = () => {
     >
       <HomeHeader />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {/* Paid Leave Days Card */}
+        <Card 
+          elevation={3} 
+          sx={{ 
+            mb: 3,
+            backgroundColor: theme.palette.background.paper,
+            borderLeft: `4px solid ${theme.palette.primary.main}`
+          }}
+        >
+          <CardContent>
+            <Grid container alignItems="center" spacing={2}>
+              <Grid item>
+                <EventAvailableIcon 
+                  sx={{ 
+                    fontSize: 40,
+                    color: theme.palette.primary.main
+                  }} 
+                />
+              </Grid>
+              <Grid item xs>
+                <Typography variant="h6" color="textPrimary" gutterBottom>
+                  {t.remainingPaidLeave || 'Remaining Paid Leave Days'}
+                </Typography>
+                <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
+                  {user?.paidLeaveDays || 0}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {t.lastUpdated || 'Last updated'}: {user?.lastLeaveUpdate ? format(new Date(user.lastLeaveUpdate), 'dd/MM/yyyy') : '-'}
+                </Typography>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
         <Paper 
           elevation={3} 
           sx={{ 
@@ -226,7 +264,7 @@ const RequestsPage = () => {
                         ) : (
                           <Typography variant="body2" color="text.secondary">
                             {t.noDocuments || 'No documents'}
-          </Typography>
+                          </Typography>
                         )}
                       </TableCell>
                       <TableCell>{formatDate(request.createdAt)}</TableCell>

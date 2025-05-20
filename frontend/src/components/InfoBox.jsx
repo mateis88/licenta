@@ -18,6 +18,7 @@ import {
   Collapse,
   ListItemSecondaryAction
 } from "@mui/material";
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import CakeIcon from '@mui/icons-material/Cake';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
@@ -52,6 +53,15 @@ const InfoBox = ({ date, onClose }) => {
   });
   const [eventError, setEventError] = useState('');
   const [expandedEvents, setExpandedEvents] = useState({});
+
+  // Check if the date is in the past
+  const isPastDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    return compareDate < today;
+  };
 
   useEffect(() => {
     const fetchBirthdays = async () => {
@@ -128,9 +138,43 @@ const InfoBox = ({ date, onClose }) => {
     }));
   };
 
+  const validateEventForm = () => {
+    if (!eventForm.name.trim()) {
+      setEventError(t.eventNameRequired);
+      return false;
+    }
+    if (!eventForm.location.trim()) {
+      setEventError(t.locationRequired);
+      return false;
+    }
+    if (!eventForm.startTime || !eventForm.endTime) {
+      setEventError(t.timeRequired);
+      return false;
+    }
+
+    // Convert times to minutes for comparison
+    const [startHours, startMinutes] = eventForm.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = eventForm.endTime.split(':').map(Number);
+    
+    const startTotalMinutes = startHours * 60 + startMinutes;
+    const endTotalMinutes = endHours * 60 + endMinutes;
+
+    if (endTotalMinutes <= startTotalMinutes) {
+      setEventError(t.endTimeAfterStart);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleCreateEvent = async () => {
     try {
       setEventError('');
+      
+      if (!validateEventForm()) {
+        return;
+      }
+
       const response = await axios.post(
         'http://localhost:3000/events',
         {
@@ -213,6 +257,19 @@ const InfoBox = ({ date, onClose }) => {
     const month = translations.calendar.monthNames[date.getMonth()];
     const year = date.getFullYear();
     return `${day} ${month} ${year}`;
+  };
+
+  const handleTimeChange = (name) => (newTime) => {
+    if (newTime) {
+      const hours = newTime.getHours().toString().padStart(2, '0');
+      const minutes = newTime.getMinutes().toString().padStart(2, '0');
+      const timeString = `${hours}:${minutes}`;
+      
+      setEventForm(prev => ({
+        ...prev,
+        [name]: timeString
+      }));
+    }
   };
 
   return (
@@ -393,15 +450,17 @@ const InfoBox = ({ date, onClose }) => {
                         {event.name}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton 
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent event expansion when clicking delete
-                            handleDeleteEvent(event._id);
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        {!isPastDate() && (
+                          <IconButton 
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEvent(event._id);
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
                         <IconButton size="small">
                           {expandedEvents[event._id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                         </IconButton>
@@ -490,29 +549,37 @@ const InfoBox = ({ date, onClose }) => {
                 />
               </Grid>
               <Grid item xs={6}>
-                <TextField
-                  fullWidth
+                <TimePicker
                   label={t.startTime}
-                  name="startTime"
-                  type="time"
-                  value={eventForm.startTime}
-                  onChange={handleEventFormChange}
-                  required
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
+                  value={eventForm.startTime ? new Date(`2000-01-01T${eventForm.startTime}`) : null}
+                  onChange={handleTimeChange('startTime')}
+                  format="HH:mm"
+                  ampm={false}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      required: true,
+                      size: "small"
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={6}>
-                <TextField
-                  fullWidth
+                <TimePicker
                   label={t.endTime}
-                  name="endTime"
-                  type="time"
-                  value={eventForm.endTime}
-                  onChange={handleEventFormChange}
-                  required
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
+                  value={eventForm.endTime ? new Date(`2000-01-01T${eventForm.endTime}`) : null}
+                  onChange={handleTimeChange('endTime')}
+                  format="HH:mm"
+                  ampm={false}
+                  minTime={eventForm.startTime ? new Date(`2000-01-01T${eventForm.startTime}`) : undefined}
+                  maxTime={new Date('2000-01-01T23:59')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      required: true,
+                      size: "small"
+                    }
+                  }}
                 />
               </Grid>
               {eventError && (
@@ -538,28 +605,30 @@ const InfoBox = ({ date, onClose }) => {
         </Collapse>
       </Box>
 
-      {/* Create Event Button */}
-      <Box sx={{ 
-        position: 'absolute', 
-        bottom: 16, 
-        right: 16,
-        zIndex: 1
-      }}>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => setShowEventForm(true)}
-          sx={{
-            borderRadius: 2,
-            textTransform: 'none',
-            px: 2,
-            py: 1
-          }}
-        >
-          {t.createEvent}
-        </Button>
-      </Box>
+      {/* Create Event Button - Only show for future dates */}
+      {!isPastDate() && (
+        <Box sx={{ 
+          position: 'absolute', 
+          bottom: 16, 
+          right: 16,
+          zIndex: 1
+        }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => setShowEventForm(true)}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 2,
+              py: 1
+            }}
+          >
+            {t.createEvent}
+          </Button>
+        </Box>
+      )}
     </Paper>
   );
 };
