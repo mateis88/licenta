@@ -167,6 +167,7 @@ const translations = {
       timeRequired: 'Start and end times are required',
       endTimeAfterStart: 'End time must be after start time',
       timeFormatHint: 'Use 24-hour format (HH:mm)',
+      department: 'Department',
     },
     login: {
       title: 'Welcome Back',
@@ -200,6 +201,7 @@ const translations = {
         invalidEmail: 'Invalid email.',
         passwordRequired: 'Password is required.',
         birthDateRequired: 'Birth date is required.',
+        departmentRequired: 'Please select a department',
       }
     },
     profile: {
@@ -228,7 +230,7 @@ const translations = {
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
       ],
-      weekDays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     },
   },
   ro: {
@@ -325,6 +327,7 @@ const translations = {
       timeRequired: 'Orele de început și sfârșit sunt obligatorii',
       endTimeAfterStart: 'Ora de sfârșit trebuie să fie după ora de început',
       timeFormatHint: 'Folosiți format 24 ore (HH:mm)',
+      department: 'Departament',
     },
     login: {
       title: 'Bine ai revenit',
@@ -358,6 +361,7 @@ const translations = {
         invalidEmail: 'Email invalid.',
         passwordRequired: 'Parola este obligatorie.',
         birthDateRequired: 'Data nașterii este obligatorie.',
+        departmentRequired: 'Vă rugăm să selectați un departament',
       }
     },
     profile: {
@@ -386,7 +390,7 @@ const translations = {
         'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
         'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
       ],
-      weekDays: ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'],
+      weekDays: ['Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm', 'Dum'],
     },
   },
 };

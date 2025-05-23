@@ -6,6 +6,10 @@ import {
   Button,
   Grid,
   useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import ratone from '../../assets/El_ratone.jpg';
 import starryNight from '../../assets/starry_night.jpg';
@@ -22,12 +26,23 @@ const RegisterPage = () => {
   const t = translations.register;
   const common = translations.common;
 
+  const departments = [
+    'IT',
+    'HR',
+    'Finance',
+    'Marketing',
+    'Sales',
+    'Operations',
+    'Management'
+  ];
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     birthDate: '',
+    department: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -40,6 +55,7 @@ const RegisterPage = () => {
         email: '',
         password: '',
         birthDate: '',
+        department: ''
       });
       setErrors({});
     };
@@ -53,6 +69,7 @@ const RegisterPage = () => {
         email: '',
         password: '',
         birthDate: '',
+        department: ''
       });
       setErrors({});
     };
@@ -73,6 +90,7 @@ const RegisterPage = () => {
     email: Yup.string().required(t.errors.emailRequired).email(t.errors.invalidEmail),
     password: Yup.string().required(t.errors.passwordRequired),
     birthDate: Yup.string().required(t.errors.birthDateRequired),
+    department: Yup.string().required(t.errors.departmentRequired)
   });
 
   const handleSubmit = async () => {
@@ -229,6 +247,28 @@ const RegisterPage = () => {
                     sx: { fontSize: '0.75rem' }
                   }}
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth size="small" error={!!errors.department}>
+                  <InputLabel sx={{ fontSize: '0.9rem' }}>{common.department}</InputLabel>
+                  <Select
+                    value={formData.department}
+                    onChange={(e) => handleChange('department', e.target.value)}
+                    label={common.department}
+                    sx={{ fontSize: '0.9rem' }}
+                  >
+                    {departments.map((dept) => (
+                      <MenuItem key={dept} value={dept} sx={{ fontSize: '0.9rem' }}>
+                        {dept}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {errors.department && (
+                    <Typography color="error" variant="caption" sx={{ fontSize: '0.75rem', ml: 2, mt: 0.5 }}>
+                      {errors.department}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
               <Grid item xs={12}>
                 <TextField

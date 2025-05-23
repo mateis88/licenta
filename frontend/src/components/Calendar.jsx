@@ -6,6 +6,7 @@ import '../styles/Calendar.css';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import CakeIcon from '@mui/icons-material/Cake';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -111,11 +112,12 @@ const Calendar = () => {
   const { user } = useAuth();
   const theme = useTheme();
   const t = translations.calendar;
+  const [birthdays, setBirthdays] = useState([]);
 
   const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
   const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
   const daysInMonth = endOfMonth.getDate();
-  const startDay = startOfMonth.getDay();
+  const startDay = (startOfMonth.getDay() + 6) % 7;
   const prevMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
   const prevMonthDays = prevMonthEnd.getDate();
 
@@ -215,11 +217,12 @@ const Calendar = () => {
           }
         );
 
-        // Filter only approved requests
-        const approvedRequests = response.data.requests.filter(
-          request => request.status === 'approved'
+        // Get both approved and pending requests
+        const relevantRequests = response.data.requests.filter(
+          request => request.status === 'approved' || request.status === 'pending'
         );
-        setLeaveRequests(approvedRequests);
+        console.log('[Calendar] Fetched leave requests:', relevantRequests);
+        setLeaveRequests(relevantRequests);
       } catch (err) {
         console.error('[Calendar] Error fetching leave requests:', err);
       }
@@ -231,10 +234,26 @@ const Calendar = () => {
   // Check if a day is part of an approved leave period
   const isApprovedLeaveDay = (day) => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    date.setHours(0, 0, 0, 0);
     return leaveRequests.some(request => {
       const start = new Date(request.startDate);
+      start.setHours(0, 0, 0, 0);
       const end = new Date(request.endDate);
-      return date >= start && date <= end;
+      end.setHours(23, 59, 59, 999); // Set to end of day
+      return date >= start && date <= end && request.status === 'approved';
+    });
+  };
+
+  // Check if a day is part of a pending leave period
+  const isPendingLeaveDay = (day) => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    date.setHours(0, 0, 0, 0);
+    return leaveRequests.some(request => {
+      const start = new Date(request.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(request.endDate);
+      end.setHours(23, 59, 59, 999); // Set to end of day
+      return date >= start && date <= end && request.status === 'pending';
     });
   };
 
@@ -285,6 +304,38 @@ const Calendar = () => {
     return hasEvent;
   };
 
+  // Add this useEffect to fetch birthdays
+  useEffect(() => {
+    const fetchBirthdays = async () => {
+      if (!user?.email) return;
+      
+      try {
+        const response = await axios.get(
+          `http://localhost:3000/birthdays/${currentDate.getFullYear()}/${currentDate.getMonth() + 1}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        setBirthdays(response.data.birthdays || []);
+      } catch (err) {
+        console.error('[Calendar] Error fetching birthdays:', err);
+      }
+    };
+
+    fetchBirthdays();
+  }, [user?.email, currentDate.getFullYear(), currentDate.getMonth()]);
+
+  // Add this function to check if a day has birthdays
+  const hasBirthdays = (date) => {
+    return birthdays.some(birthday => {
+      const birthdayDate = new Date(birthday.birthDate);
+      return birthdayDate.getDate() === date.getDate() &&
+        birthdayDate.getMonth() === date.getMonth();
+    });
+  };
+
   const renderCalendarCells = () => {
     const cells = [];
     const today = new Date();
@@ -328,33 +379,40 @@ const Calendar = () => {
       const isPastDate = date < today;
       const isSelected = isSelectedDay(day);
       const isCurrent = isCurrentDay(day);
-      const isApprovedLeave = isApprovedLeaveDay(day);
       const isHoliday = isPublicHoliday(date);
       const isWeekendDay = isWeekend(day);
+      const isWeekendOrHoliday = isWeekendDay || isHoliday;
+      const isApprovedLeave = !isWeekendOrHoliday && isApprovedLeaveDay(day);
+      const isPendingLeave = !isWeekendOrHoliday && isPendingLeaveDay(day);
       const holidayName = getHolidayName(date);
       const hasEvent = hasEvents(date);
+      const hasBirthday = hasBirthdays(date);
       
       // Determine the cell's class based on its status
       const cellClass = [
         'calendar-day',
         isSelected ? 'selected' : '',
         isCurrent ? 'current' : '',
-        isApprovedLeave ? 'approved-leave' : '',
-        (isWeekendDay || isHoliday) ? 'weekend-holiday' : '',
+        isWeekendOrHoliday ? 'weekend-holiday' : '',
         isHoliday ? 'holiday' : '',
+        !isWeekendOrHoliday && isApprovedLeave ? 'approved-leave' : '',
+        !isWeekendOrHoliday && isPendingLeave ? 'pending-leave' : '',
         hasEvent ? 'has-event' : '',
+        hasBirthday ? 'has-birthday' : '',
         isPastDate ? 'past-date' : ''
       ].filter(Boolean).join(' ');
 
-      // Determine the cell's style based on its status
+      // Determine the cell's style based on its status, with weekend/holiday taking priority
       const cellStyle = {
         backgroundColor: isSelected ? theme.palette.primary.main : 
+          isWeekendOrHoliday ? theme.palette.info.light :
           isApprovedLeave ? theme.palette.secondary.main :
-          (isWeekendDay || isHoliday) ? theme.palette.info.light :
+          isPendingLeave ? theme.palette.warning.light :
           theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
         color: isSelected ? theme.palette.primary.contrastText : 
+          isWeekendOrHoliday ? theme.palette.info.contrastText :
           isApprovedLeave ? theme.palette.secondary.contrastText :
-          (isWeekendDay || isHoliday) ? theme.palette.info.contrastText :
+          isPendingLeave ? theme.palette.warning.contrastText :
           theme.palette.text.primary,
         position: 'relative'
       };
@@ -373,6 +431,15 @@ const Calendar = () => {
           title={holidayName || ''}
         >
           <span>{day}</span>
+          {hasBirthday && (
+            <CakeIcon 
+              sx={{ 
+                fontSize: '0.875rem',
+                color: '#FF69B4',
+                filter: 'drop-shadow(0px 1px 1px rgba(0,0,0,0.1))'
+              }} 
+            />
+          )}
           {holidayName && (
             <span className="holiday-indicator" title={holidayName}>•</span>
           )}
@@ -478,53 +545,93 @@ const Calendar = () => {
             <Typography variant="h6" gutterBottom sx={{ fontFamily: '"Roboto Slab", serif' }}>
               {t.legendTitle || 'Calendar Legend'}
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Weekend/Holiday */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Box className="legend-item weekend-holiday" />
-                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
-                  {t.weekendHoliday || 'Weekend/Holiday'}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Time Off Section */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontFamily: '"Roboto Slab", serif', mb: 1, color: theme.palette.text.secondary }}>
+                  Time Off
                 </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Approved Leave */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Box className="legend-item approved-leave" />
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.approvedLeave || 'Approved Leave'}
+                    </Typography>
+                  </Box>
+
+                  {/* Pending Leave */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Box className="legend-item pending-leave" />
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.pendingLeave || 'Pending Leave'}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
 
-              {/* Approved Leave */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Box className="legend-item approved-leave" />
-                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
-                  {t.approvedLeave || 'Approved Leave'}
+              {/* Special Days Section */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontFamily: '"Roboto Slab", serif', mb: 1, color: theme.palette.text.secondary }}>
+                  Special Days
                 </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Current Day */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Box className="legend-item current" />
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.currentDay || 'Current Day'}
+                    </Typography>
+                  </Box>
+
+                  {/* Selected Day */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Box className="legend-item selected" />
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.selectedDay || 'Selected Day'}
+                    </Typography>
+                  </Box>
+
+                  {/* Weekend/Holiday */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Box className="legend-item weekend-holiday" />
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.weekendHoliday || 'Weekend/Holiday'}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
 
-              {/* Current Day */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Box className="legend-item current" />
-                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
-                  {t.currentDay || 'Current Day'}
+              {/* Indicators Section */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontFamily: '"Roboto Slab", serif', mb: 1, color: theme.palette.text.secondary }}>
+                  Indicators
                 </Typography>
-              </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Holiday Indicator */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Typography sx={{ color: '#1976d2', fontSize: '1.5rem', lineHeight: 1 }}>•</Typography>
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.holidayIndicator || 'Public Holiday'}
+                    </Typography>
+                  </Box>
 
-              {/* Selected Day */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Box className="legend-item selected" />
-                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
-                  {t.selectedDay || 'Selected Day'}
-                </Typography>
-              </Box>
+                  {/* Event Indicator */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Typography sx={{ color: '#4caf50', fontSize: '1.5rem', lineHeight: 1 }}>•</Typography>
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.eventIndicator || 'Event'}
+                    </Typography>
+                  </Box>
 
-              {/* Holiday Indicator */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Typography sx={{ color: '#1976d2', fontSize: '1.5rem', lineHeight: 1 }}>•</Typography>
-                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
-                  {t.holidayIndicator || 'Public Holiday'}
-                </Typography>
-              </Box>
-
-              {/* Event Indicator */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Typography sx={{ color: '#4caf50', fontSize: '1.5rem', lineHeight: 1 }}>•</Typography>
-                <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
-                  {t.eventIndicator || 'Event'}
-                </Typography>
+                  {/* Birthday Indicator */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CakeIcon sx={{ fontSize: '1.5rem', color: '#FF69B4' }} />
+                    <Typography sx={{ fontFamily: '"Roboto Slab", serif' }}>
+                      {t.birthdayIndicator || 'Birthday'}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
             </Box>
           </Paper>

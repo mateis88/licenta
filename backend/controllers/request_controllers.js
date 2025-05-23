@@ -72,6 +72,57 @@ exports.createRequest = async (req, res) => {
             });
         }
 
+        // Check for overlapping requests (any status)
+        const overlappingRequest = await Request.findOne({
+            email: email,
+            $or: [
+                // New request starts during an existing request
+                {
+                    startDate: { $lte: start },
+                    endDate: { $gte: start }
+                },
+                // New request ends during an existing request
+                {
+                    startDate: { $lte: end },
+                    endDate: { $gte: end }
+                },
+                // New request completely contains an existing request
+                {
+                    startDate: { $gte: start },
+                    endDate: { $lte: end }
+                }
+            ]
+        });
+
+        if (overlappingRequest) {
+            const formatDate = (date) => {
+                return new Date(date).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            };
+
+            console.log('[Request] Found overlapping request:', {
+                existingRequest: {
+                    id: overlappingRequest._id,
+                    startDate: overlappingRequest.startDate,
+                    endDate: overlappingRequest.endDate,
+                    status: overlappingRequest.status
+                },
+                newRequest: {
+                    startDate: start,
+                    endDate: end
+                }
+            });
+
+            const statusText = overlappingRequest.status.charAt(0).toUpperCase() + overlappingRequest.status.slice(1);
+            return res.status(400).json({
+                message: 'Overlapping leave request',
+                details: `You have a ${statusText.toLowerCase()} leave request that overlaps with your requested dates`
+            });
+        }
+
         // Create new request
         const request = new Request({
             email,
@@ -137,30 +188,90 @@ exports.deleteRequest = async (req, res) => {
         const { requestId } = req.params;
         const email = req.userEmail; // Get email from authenticated user
 
-        // Find the request and verify ownership
-        const request = await Request.findOne({ _id: requestId, email });
+        console.log('[Request] Delete request attempt:', {
+            requestId,
+            email,
+            userStatus: req.userStatus,
+            headers: {
+                authorization: req.headers.authorization ? 'Bearer [HIDDEN]' : 'Not provided'
+            }
+        });
+
+        if (!requestId) {
+            console.log('[Request] No request ID provided');
+            return res.status(400).json({
+                message: 'Request ID is required'
+            });
+        }
+
+        if (!email) {
+            console.log('[Request] No user email in request');
+            return res.status(401).json({
+                message: 'User not authenticated'
+            });
+        }
+
+        // First find the request without email filter to check if it exists
+        const request = await Request.findById(requestId);
         
+        console.log('[Request] Found request:', request ? {
+            id: request._id,
+            email: request.email,
+            status: request.status,
+            matchesUser: request.email === email
+        } : 'No request found');
+
         if (!request) {
+            console.log('[Request] Request not found:', requestId);
             return res.status(404).json({
-                message: 'Request not found or you do not have permission to delete it'
+                message: 'Request not found'
+            });
+        }
+
+        // Then verify ownership
+        if (request.email !== email) {
+            console.log('[Request] Ownership mismatch:', {
+                requestEmail: request.email,
+                userEmail: email
+            });
+            return res.status(403).json({
+                message: 'You do not have permission to delete this request'
             });
         }
 
         // Only allow deletion of pending requests
         if (request.status !== 'pending') {
+            console.log('[Request] Attempted to delete non-pending request:', {
+                requestId,
+                status: request.status
+            });
             return res.status(400).json({
                 message: 'Only pending requests can be deleted'
             });
         }
 
         // Delete the request
-        await Request.deleteOne({ _id: requestId });
+        const deleteResult = await Request.deleteOne({ _id: requestId });
+        
+        console.log('[Request] Delete operation result:', deleteResult);
+
+        if (deleteResult.deletedCount === 0) {
+            console.log('[Request] Delete operation failed - no document deleted');
+            return res.status(500).json({
+                message: 'Failed to delete request - no document was deleted'
+            });
+        }
 
         res.status(200).json({
             message: 'Request deleted successfully'
         });
     } catch (error) {
-        console.error('[Request] Error deleting request:', error);
+        console.error('[Request] Error deleting request:', {
+            error: error.message,
+            stack: error.stack,
+            requestId: req.params.requestId,
+            email: req.userEmail
+        });
         res.status(500).json({
             message: 'Failed to delete request',
             details: error.message
@@ -245,13 +356,169 @@ exports.updateRequestStatus = async (req, res) => {
             });
         }
 
-        // Allow status updates for any request (including reversing decisions)
+        // Get the user
+        const user = await User.findOne({ email: request.email });
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found'
+            });
+        }
+
+        // Calculate business days between start and end date
+        const calculateBusinessDays = (startDate, endDate) => {
+            let count = 0;
+            const curDate = new Date(startDate.getTime());
+            while (curDate <= endDate) {
+                const dayOfWeek = curDate.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+                curDate.setDate(curDate.getDate() + 1);
+            }
+            return count;
+        };
+
+        // If the request is being approved and it's a paid leave request
+        if (status === 'approved' && request.type === 'paid') {
+            const businessDays = calculateBusinessDays(request.startDate, request.endDate);
+            
+            console.log('[Request] Processing paid leave approval:', {
+                requestId: request._id,
+                email: request.email,
+                startDate: request.startDate,
+                endDate: request.endDate,
+                businessDays,
+                currentPaidLeaveDays: user.paidLeaveDays,
+                requestType: request.type,
+                userId: user._id
+            });
+
+            // Get the current user data from database to verify
+            const currentUser = await User.findById(user._id);
+            console.log('[Request] Current user data from database:', {
+                userId: currentUser._id,
+                email: currentUser.email,
+                paidLeaveDays: currentUser.paidLeaveDays,
+                lastLeaveUpdate: currentUser.lastLeaveUpdate
+            });
+            
+            // Check if user has enough paid leave days
+            if (user.paidLeaveDays < businessDays) {
+                console.log('[Request] Insufficient paid leave days:', {
+                    userId: user._id,
+                    email: user.email,
+                    availableDays: user.paidLeaveDays,
+                    requiredDays: businessDays
+                });
+                return res.status(400).json({
+                    message: 'Insufficient paid leave days',
+                    details: `User has ${user.paidLeaveDays} days remaining, but needs ${businessDays} days`
+                });
+            }
+
+            // Store the old value for logging
+            const oldPaidLeaveDays = user.paidLeaveDays;
+            
+            // Deduct the business days from user's paid leave days
+            user.paidLeaveDays -= businessDays;
+            user.lastLeaveUpdate = new Date();
+            
+            // Log before save
+            console.log('[Request] About to save user with updated paid leave days:', {
+                userId: user._id,
+                email: user.email,
+                oldPaidLeaveDays,
+                newPaidLeaveDays: user.paidLeaveDays,
+                deductedDays: businessDays,
+                lastLeaveUpdate: user.lastLeaveUpdate
+            });
+            
+            // Save and verify the update
+            const savedUser = await user.save();
+            console.log('[Request] User saved with updated paid leave days:', {
+                userId: savedUser._id,
+                email: savedUser.email,
+                paidLeaveDays: savedUser.paidLeaveDays,
+                lastLeaveUpdate: savedUser.lastLeaveUpdate
+            });
+
+            // Verify the update in database
+            const verifiedUser = await User.findById(user._id);
+            console.log('[Request] Verified user data in database:', {
+                userId: verifiedUser._id,
+                email: verifiedUser.email,
+                paidLeaveDays: verifiedUser.paidLeaveDays,
+                lastLeaveUpdate: verifiedUser.lastLeaveUpdate
+            });
+
+            // Double check if the update was successful
+            if (verifiedUser.paidLeaveDays !== savedUser.paidLeaveDays) {
+                console.error('[Request] Database update verification failed:', {
+                    savedPaidLeaveDays: savedUser.paidLeaveDays,
+                    verifiedPaidLeaveDays: verifiedUser.paidLeaveDays
+                });
+            }
+        }
+        // If the request is being rejected and it was previously approved and it's a paid leave request
+        else if (status === 'rejected' && request.status === 'approved' && request.type === 'paid') {
+            const businessDays = calculateBusinessDays(request.startDate, request.endDate);
+            
+            // Return the business days to user's paid leave days
+            user.paidLeaveDays += businessDays;
+            user.lastLeaveUpdate = new Date();
+            await user.save();
+
+            console.log('[Request] Restored paid leave days:', {
+                userId: user._id,
+                email: user.email,
+                oldDays: user.paidLeaveDays - businessDays,
+                newDays: user.paidLeaveDays,
+                restoredDays: businessDays
+            });
+        }
+        // If the request is being reverted to pending and it was previously approved and it's a paid leave request
+        else if (status === 'pending' && request.status === 'approved' && request.type === 'paid') {
+            const businessDays = calculateBusinessDays(request.startDate, request.endDate);
+            
+            // Return the business days to user's paid leave days
+            user.paidLeaveDays += businessDays;
+            user.lastLeaveUpdate = new Date();
+            
+            console.log('[Request] Restoring paid leave days for reverted request:', {
+                userId: user._id,
+                email: user.email,
+                oldDays: user.paidLeaveDays - businessDays,
+                newDays: user.paidLeaveDays,
+                restoredDays: businessDays,
+                requestId: request._id
+            });
+            
+            await user.save();
+        }
+
+        // Update request status
         request.status = status;
         await request.save();
 
+        // Get the complete user data
+        const updatedUser = await User.findById(user._id).select('-password');
+        const userResponse = {
+            id: updatedUser._id,
+            email: updatedUser.email,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            birthDate: updatedUser.birthDate,
+            department: updatedUser.department,
+            status: updatedUser.status,
+            profilePicture: updatedUser.profilePicture,
+            bio: updatedUser.bio || '',
+            phoneNumber: updatedUser.phoneNumber || '',
+            paidLeaveDays: updatedUser.paidLeaveDays,
+            lastLeaveUpdate: updatedUser.lastLeaveUpdate
+        };
+
         res.status(200).json({
             message: `Request status updated to ${status} successfully`,
-            request
+            request,
+            user: userResponse
         });
     } catch (error) {
         console.error('[Request] Error updating request status:', error);

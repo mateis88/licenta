@@ -71,12 +71,12 @@ const InfoBox = ({ date, onClose }) => {
         setLoading(true);
         setError('');
         
-        // Month is 0-based in JavaScript Date, but we need 1-based for the API
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
+        // Get the year and month for the API request
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1; // Convert to 1-based month
         
         const response = await axios.get(
-          `http://localhost:3000/birthdays/${month}/${day}`,
+          `http://localhost:3000/birthdays/${year}/${month}`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -84,7 +84,13 @@ const InfoBox = ({ date, onClose }) => {
           }
         );
 
-        setBirthdays(response.data.users);
+        // Filter birthdays for the specific day
+        const dayBirthdays = response.data.birthdays.filter(birthday => {
+          const birthdayDate = new Date(birthday.birthDate);
+          return birthdayDate.getDate() === date.getDate();
+        });
+
+        setBirthdays(dayBirthdays);
       } catch (err) {
         console.error('Error fetching birthdays:', err);
         setError(t.failedToLoadBirthdays || 'Failed to load birthdays');
@@ -357,21 +363,25 @@ const InfoBox = ({ date, onClose }) => {
             </Typography>
           ) : (
             <List>
-              {birthdays.map((user) => (
-                <ListItem key={user.id} sx={{ px: 0 }}>
+              {birthdays.map((birthday) => (
+                <ListItem key={birthday._id || birthday.firstName + birthday.lastName} sx={{ px: 0 }}>
                   <ListItemAvatar>
                     <Avatar
-                      src={user.profilePicture ? `http://localhost:3000${user.profilePicture}` : null}
-                      alt={user.fullName}
+                      src={birthday.profilePicture ? `http://localhost:3000${birthday.profilePicture}` : null}
+                      alt={`${birthday.firstName} ${birthday.lastName}`}
                     >
-                      {user.fullName.charAt(0)}
+                      {birthday.firstName.charAt(0)}
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText 
-                    primary={user.fullName}
+                    primary={`${birthday.firstName} ${birthday.lastName}`}
+                    secondary={birthday.department}
                     sx={{ 
                       '& .MuiListItemText-primary': {
                         color: theme.palette.text.primary
+                      },
+                      '& .MuiListItemText-secondary': {
+                        color: theme.palette.text.secondary
                       }
                     }}
                   />

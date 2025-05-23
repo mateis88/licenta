@@ -37,6 +37,7 @@ exports.authenticateToken = async (req, res, next) => {
         // Attach both the decoded token info and the full user object
         req.userId = decodedToken.userId;
         req.userStatus = user.status;
+        req.userEmail = user.email;
         req.user = {
             id: user._id,
             email: user.email,
@@ -49,7 +50,12 @@ exports.authenticateToken = async (req, res, next) => {
     } catch (err) {
         console.error('[Auth] Authentication error:', {
             error: err.message,
-            stack: err.stack
+            stack: err.stack,
+            path: req.path,
+            headers: {
+                'content-type': req.headers['content-type'],
+                'authorization': req.headers.authorization ? 'Bearer [HIDDEN]' : 'Not provided'
+            }
         });
         
         if (err.name === 'JsonWebTokenError') {

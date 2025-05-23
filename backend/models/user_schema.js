@@ -37,6 +37,14 @@ const user_schema = new Schema({
         required: [true, 'Password is required'],
         minlength: [6, 'Password must be at least 6 characters long']
     },
+    department: {
+        type: String,
+        required: [true, 'Department is required'],
+        enum: {
+            values: ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'],
+            message: '{VALUE} is not a valid department'
+        }
+    },
     status: {
         type: String,
         enum: ['regular', 'admin'],

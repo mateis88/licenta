@@ -119,20 +119,64 @@ const RequestsPage = () => {
   };
 
   const handleDeleteClick = (request) => {
+    console.log('[Frontend] Delete button clicked for request:', {
+      requestId: request._id,
+      requestEmail: request.email,
+      currentUserEmail: user.email,
+      status: request.status
+    });
     setRequestToDelete(request);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
+    if (!requestToDelete || !requestToDelete._id) {
+      console.error('[Frontend] No request selected for deletion');
+      setError('No request selected for deletion');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    console.log('[Frontend] Token state:', {
+      exists: !!token,
+      length: token?.length,
+      firstChars: token ? `${token.substring(0, 10)}...` : 'none',
+      user: user ? {
+        email: user.email,
+        id: user.id,
+        status: user.status
+      } : 'no user',
+      isAuthenticated: !!user
+    });
+
+    if (!token) {
+      console.error('[Frontend] No authentication token found');
+      setError('Authentication required. Please log in again.');
+      return;
+    }
+
     try {
-      await axios.delete(
+      console.log('[Frontend] Attempting to delete request:', {
+        requestId: requestToDelete._id,
+        requestEmail: requestToDelete.email,
+        currentUserEmail: user.email,
+        status: requestToDelete.status,
+        token: token ? 'Token exists' : 'No token',
+        headers: {
+          'Authorization': `Bearer ${token.substring(0, 10)}...`
+        }
+      });
+
+      const response = await axios.delete(
         `http://localhost:3000/requests/${requestToDelete._id}`,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         }
       );
+
+      console.log('[Frontend] Delete request response:', response.data);
 
       // Remove the deleted request from the state
       setRequests(prevRequests => 
@@ -141,9 +185,29 @@ const RequestsPage = () => {
 
       setDeleteDialogOpen(false);
       setRequestToDelete(null);
+      setError(''); // Clear any previous errors
     } catch (err) {
-      console.error('Error deleting request:', err);
-      setError(err.response?.data?.message || t.failedToDeleteRequest);
+      console.error('[Frontend] Error deleting request:', {
+        error: err,
+        response: err.response?.data,
+        status: err.response?.status,
+        requestId: requestToDelete._id,
+        requestEmail: requestToDelete.email,
+        currentUserEmail: user.email,
+        token: token ? 'Token exists' : 'No token',
+        headers: err.config?.headers ? {
+          ...err.config.headers,
+          'Authorization': 'Bearer [HIDDEN]'
+        } : 'No headers'
+      });
+      
+      // Show more specific error message
+      const errorMessage = err.response?.data?.message || 
+        err.response?.data?.details || 
+        t.failedToDeleteRequest || 
+        'Failed to delete request';
+      
+      setError(errorMessage);
     }
   };
 

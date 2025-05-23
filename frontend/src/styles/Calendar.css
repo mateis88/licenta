@@ -81,6 +81,7 @@
     font-family: 'Roboto Slab', serif;
   }
   
+  /* Base calendar day style */
   .calendar-day {
     width: 40px;
     height: 40px;
@@ -88,27 +89,92 @@
     padding: 0;
     font-family: 'Roboto Slab', serif;
     transition: transform 0.2s ease;
-    border: none !important; /* Remove all borders */
+    border: none !important;
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
+    background-color: transparent;
   }
   
-  /* Weekend and holiday styles */
-  .calendar-day.weekend-holiday {
-    background-color: rgba(33, 150, 243, 0.1) !important; /* Light blue */
-    color: #1976d2 !important; /* Darker blue for text */
+  /* Approved leave styles - update to be more visible and work on all days */
+  .calendar-day.approved-leave {
+    background-color: rgba(156, 39, 176, 0.2) !important;
+    color: #7b1fa2 !important;
+    border: 1px solid rgba(156, 39, 176, 0.4) !important;
   }
   
-  /* Current day style - only yellow outline */
-  .calendar-day.current {
-    position: relative;
+  .calendar-day.approved-leave:hover {
+    background-color: rgba(156, 39, 176, 0.3) !important;
   }
   
-  /* Add yellow outline for current day using pseudo-element */
+  /* Pending leave styles - update to be more visible and work on all days */
+  .calendar-day.pending-leave {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+    color: #f57c00 !important;
+    border: 1px solid rgba(255, 193, 7, 0.4) !important;
+  }
+  
+  .calendar-day.pending-leave:hover {
+    background-color: rgba(255, 193, 7, 0.3) !important;
+  }
+  
+  /* Update legend items */
+  .legend-item.approved-leave {
+    background-color: rgba(156, 39, 176, 0.2);
+    border: 1px solid rgba(156, 39, 176, 0.4);
+  }
+  
+  .legend-item.pending-leave {
+    background-color: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+  }
+  
+  /* Dark mode styles */
+  @media (prefers-color-scheme: dark) {
+    .calendar-day.approved-leave {
+      background-color: rgba(156, 39, 176, 0.25) !important;
+      color: #ce93d8 !important;
+      border: 1px solid rgba(156, 39, 176, 0.5) !important;
+    }
+  
+    .calendar-day.approved-leave:hover {
+      background-color: rgba(156, 39, 176, 0.35) !important;
+    }
+  
+    .calendar-day.pending-leave {
+      background-color: rgba(255, 193, 7, 0.25) !important;
+      color: #ffb74d !important;
+      border: 1px solid rgba(255, 193, 7, 0.5) !important;
+    }
+  
+    .calendar-day.pending-leave:hover {
+      background-color: rgba(255, 193, 7, 0.35) !important;
+    }
+  
+    .legend-item.approved-leave {
+      background-color: rgba(156, 39, 176, 0.25);
+      border: 1px solid rgba(156, 39, 176, 0.5);
+    }
+  
+    .legend-item.pending-leave {
+      background-color: rgba(255, 193, 7, 0.25);
+      border: 1px solid rgba(255, 193, 7, 0.5);
+    }
+  }
+  
+  /* Weekend and holiday styles - MUST BE LAST */
+  .calendar-day.weekend-holiday,
+  .calendar-day.holiday {
+    background-color: rgba(33, 150, 243, 0.1) !important;
+    color: #1976d2 !important;
+    z-index: 1 !important; /* Lower z-index to allow leave styles to show */
+    pointer-events: none;
+  }
+  
+  /* Current day outline */
   .calendar-day.current::after {
     content: '';
     position: absolute;
@@ -122,47 +188,7 @@
     z-index: 1;
   }
   
-  /* Remove any background overrides for current day */
-  .calendar-day.current.approved-leave,
-  .calendar-day.current.weekend-holiday,
-  .calendar-day.current.holiday {
-    background-color: inherit !important;
-  }
-  
-  /* Ensure proper layering of styles */
-  .calendar-day.approved-leave.weekend-holiday {
-    background-color: rgba(33, 150, 243, 0.1) !important; /* Blue takes precedence */
-    color: #1976d2 !important; /* Darker blue for text */
-  }
-  
-  .calendar-day.current.approved-leave {
-    background-color: rgba(156, 39, 176, 0.1) !important; /* Keep purple background */
-    color: #7b1fa2 !important;
-  }
-  
-  .calendar-day.current.weekend-holiday {
-    background-color: rgba(33, 150, 243, 0.1) !important; /* Keep blue background */
-    color: #1976d2 !important;
-  }
-  
-  .calendar-day.current.holiday {
-    background-color: rgba(33, 150, 243, 0.1) !important; /* Keep blue background */
-    color: #1976d2 !important;
-  }
-  
-  /* Approved leave style */
-  .calendar-day.approved-leave {
-    background-color: rgba(156, 39, 176, 0.1) !important; /* Light purple */
-    color: #7b1fa2 !important; /* Darker purple for text */
-  }
-  
-  /* Selected day style */
-  .calendar-day.selected {
-    background-color: rgba(25, 118, 210, 0.1) !important;
-    position: relative;
-  }
-  
-  /* Add blue outline for selected day using pseudo-element */
+  /* Selected day outline */
   .calendar-day.selected::after {
     content: '';
     position: absolute;
@@ -173,29 +199,13 @@
     border: 2px solid #1976d2;
     border-radius: 4px;
     pointer-events: none;
+    z-index: 1;
   }
   
   /* Adjacent month days */
-  .adjacent-month {
+  .calendar-day.adjacent-month {
     color: #aaa !important;
     background-color: transparent !important;
-  }
-  
-  /* Hover effects for all days */
-  .calendar-day:hover {
-    transform: scale(1.05);
-    z-index: 1;
-    transition: transform 0.2s ease;
-  }
-  
-  /* Add specific rules for holiday days with approved leave */
-  .calendar-day.holiday.approved-leave {
-    background-color: rgba(33, 150, 243, 0.1) !important; /* Blue takes precedence */
-    color: #1976d2 !important;
-  }
-  
-  .calendar-day.holiday.approved-leave:hover {
-    background-color: rgba(33, 150, 243, 0.2) !important;
   }
   
   /* Event indicator styles */
@@ -235,22 +245,51 @@
     margin-top: 2px;
   }
   
+  /* Birthday indicator styles */
+  .calendar-day.has-birthday {
+    position: relative;
+  }
+  
+  .calendar-day.has-birthday .MuiSvgIcon-root {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 0.875rem;
+    filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.1));
+    z-index: 2;
+    pointer-events: none; /* Prevent icon from interfering with button clicks */
+  }
+  
+  /* Remove the padding-right that was causing the number to shift */
+  .calendar-day.has-birthday > span:first-child {
+    margin-top: 2px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* When both holiday and event indicators are present with birthday */
+  .calendar-day.has-birthday.has-event .holiday-indicator {
+    bottom: -8px;
+  }
+  
+  .calendar-day.has-birthday.has-event .event-indicator {
+    bottom: -8px;
+  }
+  
+  /* Override weekend/holiday styles for pending leave */
+  .calendar-day.pending-leave.weekend-holiday,
+  .calendar-day.pending-leave.holiday {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+    color: #f57c00 !important;
+    border: 1px solid rgba(255, 193, 7, 0.4) !important;
+  }
+  
   /* Legend styles */
   .legend-item {
     width: 24px;
     height: 24px;
     border-radius: 4px;
     flex-shrink: 0;
-  }
-  
-  .legend-item.weekend-holiday {
-    background-color: rgba(33, 150, 243, 0.1);
-    border: 1px solid #1976d2;
-  }
-  
-  .legend-item.approved-leave {
-    background-color: rgba(156, 39, 176, 0.1);
-    border: 1px solid #7b1fa2;
   }
   
   .legend-item.current {

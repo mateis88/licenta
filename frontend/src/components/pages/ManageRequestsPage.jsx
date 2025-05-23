@@ -39,7 +39,7 @@ import RestoreIcon from '@mui/icons-material/Restore';
 
 const ManageRequestsPage = () => {
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { translations } = useSettings();
   const t = translations.common;
 
@@ -190,24 +190,22 @@ const ManageRequestsPage = () => {
 
   const handleActionConfirm = async () => {
     try {
-      let newStatus;
-      switch (actionType) {
-        case 'approve':
-          newStatus = 'approved';
-          break;
-        case 'reject':
-          newStatus = 'rejected';
-          break;
-        case 'reverse':
-          newStatus = 'pending';
-          break;
-        default:
-          throw new Error('Invalid action type');
-      }
+      console.log('[Frontend] About to update request status:', {
+        requestId: selectedRequest._id,
+        actionType,
+        newStatus: actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'pending',
+        requestType: selectedRequest.type,
+        startDate: selectedRequest.startDate,
+        endDate: selectedRequest.endDate
+      });
 
       const response = await axios.patch(
         `http://localhost:3000/requests/${selectedRequest._id}/status`,
-        { status: newStatus },
+        { 
+          status: actionType === 'approve' ? 'approved' : 
+                 actionType === 'reject' ? 'rejected' : 
+                 'pending' 
+        },
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -215,21 +213,50 @@ const ManageRequestsPage = () => {
         }
       );
 
-      // Update the request in the state
-      setRequests(prevRequests => 
-        prevRequests.map(request => 
+      console.log('[Frontend] Request status update response:', {
+        status: response.status,
+        data: response.data,
+        user: response.data.user,
+        paidLeaveDays: response.data.user?.paidLeaveDays,
+        request: response.data.request
+      });
+
+      // Update the user state with the new paid leave days
+      if (response.data.user) {
+        console.log('[Frontend] Updating user state with:', response.data.user);
+        setUser(response.data.user);
+      } else {
+        console.warn('[Frontend] No user data in response:', response.data);
+      }
+
+      // Update the requests list
+      setRequests(prevRequests => {
+        const updatedRequests = prevRequests.map(request => 
           request._id === selectedRequest._id 
-            ? { ...request, status: newStatus }
+            ? { 
+                ...request, 
+                status: actionType === 'approve' ? 'approved' : 
+                       actionType === 'reject' ? 'rejected' : 
+                       'pending' 
+              }
             : request
-        )
-      );
+        );
+        console.log('[Frontend] Updated requests list:', updatedRequests);
+        return updatedRequests;
+      });
 
       setActionDialogOpen(false);
       setSelectedRequest(null);
       setActionType('');
-    } catch (err) {
-      console.error('Error updating request status:', err);
-      setError(err.response?.data?.message || t.failedToUpdateRequest);
+    } catch (error) {
+      console.error('[Frontend] Error updating request status:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        requestId: selectedRequest._id,
+        actionType
+      });
+      setError(error.response?.data?.message || 'Failed to update request status');
     }
   };
 

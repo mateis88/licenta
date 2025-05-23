@@ -520,6 +520,9 @@ const ProfilePage = () => {
               <Typography variant="subtitle1" color="text.secondary">
                 {user.email}
               </Typography>
+              <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
+                {user.department}
+              </Typography>
             </Box>
             {!isEditing ? (
               <Button 
@@ -672,6 +675,44 @@ const ProfilePage = () => {
               ) : (
                 <Typography variant="body1" gutterBottom>
                   {formatDate(user.birthDate)}
+                </Typography>
+              )}
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {t.email}
+              </Typography>
+              {isEditing ? (
+                <TextField
+                  fullWidth
+                  name="email"
+                  value={editedUser.email}
+                  disabled
+                  size="small"
+                />
+              ) : (
+                <Typography variant="body1" gutterBottom>
+                  {user.email}
+                </Typography>
+              )}
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {t.department}
+              </Typography>
+              {isEditing ? (
+                <TextField
+                  fullWidth
+                  name="department"
+                  value={editedUser.department}
+                  disabled
+                  size="small"
+                />
+              ) : (
+                <Typography variant="body1" gutterBottom>
+                  {user.department}
                 </Typography>
               )}
             </Grid>

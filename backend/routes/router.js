@@ -61,7 +61,11 @@ router.post("/register",
                     throw new Error('Birth date cannot be in the future.');
                 }
                 return true;
-            })
+            }),
+        body('department')
+            .trim()
+            .isIn(['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'])
+            .withMessage('Please select a valid department.')
     ],
     user_controllers.register
 );
@@ -91,6 +95,8 @@ router.get("/validate-token", authenticateToken, async (req, res, next) => {
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
+            paidLeaveDays: user.paidLeaveDays,
+            lastLeaveUpdate: user.lastLeaveUpdate,
             address: {
                 street: user.address?.street || '',
                 city: user.address?.city || '',
@@ -157,8 +163,8 @@ router.post(
     user_controllers.uploadProfilePicture
 );
 
-// Get birthdays on a specific date
-router.get("/birthdays/:month/:day", authenticateToken, user_controllers.getBirthdaysOnDate);
+// Update the birthdays route to use year and month
+router.get("/birthdays/:year/:month", authenticateToken, user_controllers.getBirthdays);
 
 // Event routes
 router.use('/events', eventRoutes);
