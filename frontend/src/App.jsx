@@ -13,6 +13,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { CalendarProvider } from './contexts/CalendarContext';
+import ManageEmployees from './components/ManageEmployees';
 
 function App() {
   return (
@@ -55,6 +56,11 @@ function App() {
                 <Route path="/manage-requests" element={
                   <ProtectedRoute>
                     <ManageRequestsPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/manage-employees" element={
+                  <ProtectedRoute>
+                    <ManageEmployees />
                   </ProtectedRoute>
                 } />
 

@@ -18,6 +18,7 @@ import { useTheme } from '@mui/material/styles';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 
 function ResponsiveAppBar({ showSettings = true }) {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
@@ -162,11 +163,11 @@ function ResponsiveAppBar({ showSettings = true }) {
                   {t.newRequest}
                 </Button>
                 {isAdmin && (
-              <Button
-                variant="contained"
-                    onClick={() => navigate('/manage-requests')}
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate('/manage-employees')}
                     startIcon={<AdminPanelSettingsIcon />}
-                sx={{
+                    sx={{
                       borderRadius: 2,
                       textTransform: 'none',
                       px: 3,
@@ -175,11 +176,36 @@ function ResponsiveAppBar({ showSettings = true }) {
                       '&:hover': {
                         backgroundColor: theme.palette.error.dark
                       }
-                }}
-              >
-                    Manage requests
-              </Button>
+                    }}
+                  >
+                    {t.manageEmployees}
+                  </Button>
                 )}
+              </Box>
+            )}
+            {location.pathname === '/manage-employees' && isAdmin && (
+              <Box sx={{ 
+                display: { xs: 'none', md: 'flex' }, 
+                gap: 2,
+                ml: 4
+              }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/manage-requests')}
+                  startIcon={<AssignmentIcon />}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    px: 3,
+                    py: 1,
+                    backgroundColor: theme.palette.primary.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.primary.dark
+                    }
+                  }}
+                >
+                  {t.manageRequests}
+                </Button>
               </Box>
             )}
           </Box>
