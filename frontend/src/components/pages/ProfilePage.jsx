@@ -12,7 +12,11 @@ import {
   TextField,
   IconButton,
   Tooltip,
-  CircularProgress
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
@@ -37,6 +41,12 @@ const ProfilePage = () => {
   const fileInputRef = useRef(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  // List of all departments
+  const departments = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'];
+
+  // Check if current user is admin
+  const isAdmin = user?.status === 'admin';
 
   // Add effect to fetch complete profile data
   useEffect(() => {
@@ -100,6 +110,7 @@ const ProfilePage = () => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        department: user.department,
         address: user.address,
         fullUserObject: user
       });
@@ -300,7 +311,13 @@ const ProfilePage = () => {
       // Format the birth date before sending
       const dataToSend = {
         ...editedUser,
-        birthDate: formatDate(editedUser.birthDate) // Convert to DD/MM/YYYY format
+        // Keep birth date in ISO format (YYYY-MM-DD)
+        birthDate: editedUser.birthDate,
+        // Only include email and department if user is admin
+        ...(isAdmin && {
+          email: editedUser.email,
+          department: editedUser.department
+        })
       };
       
       // Remove any undefined or null values
@@ -517,12 +534,43 @@ const ProfilePage = () => {
               <Typography variant="h4" component="h1" gutterBottom>
                 {user.firstName} {user.lastName}
               </Typography>
-              <Typography variant="subtitle1" color="text.secondary">
-                {user.email}
-              </Typography>
-              <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
-                {user.department}
-              </Typography>
+              {isEditing && isAdmin ? (
+                <>
+                  <TextField
+                    fullWidth
+                    name="email"
+                    value={editedUser.email}
+                    onChange={handleInputChange}
+                    size="small"
+                    sx={{ mb: 1 }}
+                  />
+                  <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                    <InputLabel id="department-label">{t.department}</InputLabel>
+                    <Select
+                      labelId="department-label"
+                      name="department"
+                      value={editedUser.department}
+                      onChange={handleInputChange}
+                      label={t.department}
+                    >
+                      {departments.map((dept) => (
+                        <MenuItem key={dept} value={dept}>
+                          {dept}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </>
+              ) : (
+                <>
+                  <Typography variant="subtitle1" color="text.secondary">
+                    {user.email}
+                  </Typography>
+                  <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {user.department}
+                  </Typography>
+                </>
+              )}
             </Box>
             {!isEditing ? (
               <Button 
@@ -665,54 +713,16 @@ const ProfilePage = () => {
               {isEditing ? (
                   <TextField
                     fullWidth
-                  type="date"
-                  name="birthDate"
-                  value={editedUser.birthDate}
+                    type="date"
+                    name="birthDate"
+                    value={editedUser.birthDate}
                     onChange={handleInputChange}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  />
               ) : (
                 <Typography variant="body1" gutterBottom>
                   {formatDate(user.birthDate)}
-                </Typography>
-              )}
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary">
-                {t.email}
-              </Typography>
-              {isEditing ? (
-                <TextField
-                  fullWidth
-                  name="email"
-                  value={editedUser.email}
-                  disabled
-                  size="small"
-                />
-              ) : (
-                <Typography variant="body1" gutterBottom>
-                  {user.email}
-                </Typography>
-              )}
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary">
-                {t.department}
-              </Typography>
-              {isEditing ? (
-                <TextField
-                  fullWidth
-                  name="department"
-                  value={editedUser.department}
-                  disabled
-                  size="small"
-                />
-              ) : (
-                <Typography variant="body1" gutterBottom>
-                  {user.department}
                 </Typography>
               )}
             </Grid>

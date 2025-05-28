@@ -19,6 +19,7 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 function ResponsiveAppBar({ showSettings = true }) {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
@@ -31,6 +32,11 @@ function ResponsiveAppBar({ showSettings = true }) {
 
   // Determine if we should show settings based on the current path
   const shouldShowSettings = location.pathname !== '/login' && location.pathname !== '/register';
+
+  // Determine if we should show the back button
+  const shouldShowBackButton = location.pathname !== '/login' && 
+                             location.pathname !== '/home' && 
+                             location.pathname !== '/register';
 
   const settings = [
     { key: 'profile', label: t.profile },
@@ -71,6 +77,25 @@ function ResponsiveAppBar({ showSettings = true }) {
     }
   };
 
+  // Handle back button click
+  const handleBackClick = () => {
+    // Define the back navigation logic based on current path
+    const currentPath = location.pathname;
+    if (currentPath.startsWith('/profile/')) {
+      navigate('/home');
+    } else if (currentPath === '/manage-employees') {
+      navigate('/home');
+    } else if (currentPath === '/manage-requests') {
+      navigate('/manage-employees');
+    } else if (currentPath === '/requests') {
+      navigate('/home');
+    } else if (currentPath === '/settings') {
+      navigate('/home');
+    } else {
+      navigate(-1); // Fallback to browser's back functionality
+    }
+  };
+
   // Get the first letter of the user's first name
   const getInitials = () => {
     if (user && user.firstName) {
@@ -105,6 +130,20 @@ function ResponsiveAppBar({ showSettings = true }) {
       >
         <Toolbar disableGutters sx={{ justifyContent: shouldShowSettings ? 'space-between' : 'flex-start' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {shouldShowBackButton && (
+              <IconButton
+                onClick={handleBackClick}
+                sx={{
+                  color: 'text.primary',
+                  mr: 1,
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)'
+                  }
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
             <Box
               component="img"
               src={ratone}
@@ -163,11 +202,11 @@ function ResponsiveAppBar({ showSettings = true }) {
                   {t.newRequest}
                 </Button>
                 {isAdmin && (
-                  <Button
-                    variant="contained"
+              <Button
+                variant="contained"
                     onClick={() => navigate('/manage-employees')}
                     startIcon={<AdminPanelSettingsIcon />}
-                    sx={{
+                sx={{
                       borderRadius: 2,
                       textTransform: 'none',
                       px: 3,
@@ -185,7 +224,7 @@ function ResponsiveAppBar({ showSettings = true }) {
             )}
             {location.pathname === '/manage-employees' && isAdmin && (
               <Box sx={{ 
-                display: { xs: 'none', md: 'flex' }, 
+                  display: { xs: 'none', md: 'flex' },
                 gap: 2,
                 ml: 4
               }}>
@@ -202,10 +241,10 @@ function ResponsiveAppBar({ showSettings = true }) {
                     '&:hover': {
                       backgroundColor: theme.palette.primary.dark
                     }
-                  }}
-                >
+                }}
+              >
                   {t.manageRequests}
-                </Button>
+              </Button>
               </Box>
             )}
           </Box>

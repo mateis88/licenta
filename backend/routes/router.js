@@ -150,7 +150,12 @@ router.put("/profile/:id",
         body('birthDate')
             .optional()
             .isISO8601()
-            .withMessage('Invalid birth date format.')
+            .withMessage('Invalid birth date format.'),
+        body('department')
+            .optional()
+            .trim()
+            .isIn(['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'])
+            .withMessage('Please select a valid department.')
     ],
     user_controllers.updateProfile
 );
@@ -168,5 +173,8 @@ router.get("/birthdays/:year/:month", authenticateToken, user_controllers.getBir
 
 // Event routes
 router.use('/events', eventRoutes);
+
+// Get all employees (admin only)
+router.get('/employees', authenticateToken, user_controllers.getAllEmployees);
 
 module.exports = router;

@@ -1,16 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
   Paper, 
   Container,
-  useTheme
+  useTheme,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Avatar,
+  CircularProgress,
+  Alert,
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { useNavigate } from 'react-router';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router';
 import HomeHeader from './HomeHeader';
+import SearchIcon from '@mui/icons-material/Search';
+import axios from 'axios';
 
 const ManageEmployees = () => {
   const theme = useTheme();
@@ -19,10 +36,72 @@ const ManageEmployees = () => {
   const { user } = useAuth();
   const t = translations.common;
 
+  const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // List of all departments
+  const departments = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'];
+
   // Only allow access to admin users
   if (!user || user.status !== 'admin') {
     return <Navigate to="/home" replace />;
   }
+
+  // Fetch employees
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/employees', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        setEmployees(response.data.employees);
+        setFilteredEmployees(response.data.employees);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching employees:', err);
+        setError(err.response?.data?.message || 'Failed to fetch employees');
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  // Filter employees based on search query and department
+  useEffect(() => {
+    let filtered = employees;
+
+    // Apply department filter
+    if (selectedDepartment) {
+      filtered = filtered.filter(employee => employee.department === selectedDepartment);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(employee => {
+        const fullName = `${employee.firstName} ${employee.lastName}`.toLowerCase();
+        const email = employee.email.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+      });
+    }
+
+    setFilteredEmployees(filtered);
+  }, [searchQuery, selectedDepartment, employees]);
+
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  const handleDepartmentChange = (event) => {
+    setSelectedDepartment(event.target.value);
+  };
 
   return (
     <Box
@@ -47,12 +126,105 @@ const ManageEmployees = () => {
             <Typography variant="h4" component="h1" sx={{ color: theme.palette.text.primary }}>
               {t.manageEmployees}
             </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                variant="outlined"
+                size="small"
+                sx={{ width: 250 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel id="department-filter-label">Department</InputLabel>
+                <Select
+                  labelId="department-filter-label"
+                  value={selectedDepartment}
+                  label="Department"
+                  onChange={handleDepartmentChange}
+                >
+                  <MenuItem value="">
+                    <em>All Departments</em>
+                  </MenuItem>
+                  {departments.map((dept) => (
+                    <MenuItem key={dept} value={dept}>
+                      {dept}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
           </Box>
 
-          {/* Add your employee management content here */}
-          <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-            {t.employeeManagementComingSoon}
-          </Typography>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+          ) : filteredEmployees.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              {searchQuery || selectedDepartment ? 'No matching employees found' : 'No employees found'}
+            </Alert>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Employee</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Paid Leave Days</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredEmployees.map((employee) => (
+                    <TableRow 
+                      key={employee.id}
+                      hover
+                      onClick={() => navigate(`/profile/${employee.id}`)}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar
+                            src={employee.profilePicture ? `http://localhost:3000${employee.profilePicture}` : null}
+                            alt={`${employee.firstName} ${employee.lastName}`}
+                          >
+                            {employee.firstName.charAt(0)}
+                          </Avatar>
+                          <Typography>
+                            {employee.firstName} {employee.lastName}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>{employee.email}</TableCell>
+                      <TableCell>{employee.department}</TableCell>
+                      <TableCell>
+                        <Typography
+                          sx={{
+                            color: employee.status === 'admin' ? theme.palette.error.main : theme.palette.success.main,
+                            fontWeight: 'medium'
+                          }}
+                        >
+                          {employee.status === 'admin' ? 'Admin' : 'Employee'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{employee.paidLeaveDays}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Paper>
       </Container>
     </Box>

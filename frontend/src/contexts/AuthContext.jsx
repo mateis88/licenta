@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const validateToken = async () => {
       const storedToken = localStorage.getItem('token');
+
       if (storedToken) {
         try {
           // Set the token in axios defaults

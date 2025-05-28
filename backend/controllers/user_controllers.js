@@ -51,6 +51,7 @@ exports.login = async (req, res, next) => {
             lastName: user.lastName,
             birthDate: user.birthDate,
             status: user.status,
+            department: user.department,
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
@@ -128,6 +129,7 @@ exports.register = async (req, res, next) => {
             lastName: user.lastName,
             birthDate: user.birthDate,
             status: user.status,
+            department: user.department,
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
@@ -182,6 +184,7 @@ exports.getProfile = async (req, res, next) => {
             lastName: user.lastName,
             birthDate: user.birthDate,
             status: user.status,
+            department: user.department,
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
@@ -216,6 +219,7 @@ exports.updateProfile = async (req, res, next) => {
             const error = new Error('Validation failed');
             error.statusCode = 422;
             error.data = errors.array();
+            console.log('[UpdateProfile] Validation errors:', errors.array());
             throw error;
         }
 
@@ -236,13 +240,38 @@ exports.updateProfile = async (req, res, next) => {
         }
 
         // Update fields
-        const { firstName, lastName, birthDate, bio, phoneNumber, address } = req.body;
+        const { firstName, lastName, birthDate, bio, phoneNumber, address, email, department } = req.body;
         
         if (firstName) user.firstName = firstName;
         if (lastName) user.lastName = lastName;
         if (birthDate) user.birthDate = birthDate;
         if (bio !== undefined) user.bio = bio;
         if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+        
+        // Only allow admin to update email and department
+        if (req.userStatus === 'admin') {
+            if (email && email !== user.email) {
+                // Check if email is already in use
+                const existingUser = await User.findOne({ email });
+                if (existingUser && existingUser._id.toString() !== userId) {
+                    const error = new Error('Email already in use');
+                    error.statusCode = 422;
+                    throw error;
+                }
+                user.email = email;
+            }
+            if (department) {
+                // Validate department
+                const validDepartments = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'];
+                if (!validDepartments.includes(department)) {
+                    const error = new Error('Invalid department');
+                    error.statusCode = 422;
+                    throw error;
+                }
+                user.department = department;
+            }
+        }
+
         if (address) {
             user.address = {
                 street: address.street || user.address?.street || '',
@@ -263,6 +292,7 @@ exports.updateProfile = async (req, res, next) => {
             lastName: user.lastName,
             birthDate: user.birthDate,
             status: user.status,
+            department: user.department,
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
@@ -326,6 +356,7 @@ exports.uploadProfilePicture = async (req, res, next) => {
             lastName: user.lastName,
             birthDate: user.birthDate,
             status: user.status,
+            department: user.department,
             profilePicture: user.profilePicture,
             bio: user.bio || '',
             phoneNumber: user.phoneNumber || '',
@@ -403,6 +434,44 @@ exports.getBirthdays = async (req, res, next) => {
         });
     } catch (err) {
         console.error('[Birthdays] Error:', err);
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
+};
+
+// Get all employees (admin only)
+exports.getAllEmployees = async (req, res, next) => {
+    try {
+        // Check if user is admin
+        if (req.userStatus !== 'admin') {
+            const error = new Error('Access denied. Admin privileges required.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // Get all users except passwords
+        const users = await User.find().select('-password').sort({ firstName: 1, lastName: 1 });
+
+        // Transform user data
+        const employees = users.map(user => ({
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            department: user.department,
+            status: user.status,
+            profilePicture: user.profilePicture,
+            paidLeaveDays: user.paidLeaveDays,
+            lastLeaveUpdate: user.lastLeaveUpdate
+        }));
+
+        res.status(200).json({
+            message: 'Employees retrieved successfully',
+            employees
+        });
+    } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
         }

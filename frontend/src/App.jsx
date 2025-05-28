@@ -20,9 +20,9 @@ function App() {
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={localStorage.getItem('language') === 'ro' ? ro : enUS}>
       <Router>
         <AuthProvider>
-          <SettingsProvider>
+    <SettingsProvider>
             <CalendarProvider>
-              <Routes>
+        <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -69,9 +69,9 @@ function App() {
 
                 {/* Catch all other routes and redirect to login */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
+        </Routes>
             </CalendarProvider>
-          </SettingsProvider>
+    </SettingsProvider>
         </AuthProvider>
       </Router>
     </LocalizationProvider>

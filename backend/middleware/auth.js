@@ -3,14 +3,6 @@ const User = require('../models/user_schema');
 
 exports.authenticateToken = async (req, res, next) => {
     try {
-        console.log('[Auth] Authenticating request:', {
-            path: req.path,
-            headers: {
-                'content-type': req.headers['content-type'],
-                'authorization': req.headers.authorization ? 'Bearer [HIDDEN]' : 'Not provided'
-            }
-        });
-
         const authHeader = req.headers['authorization'];
         const token = authHeader && authHeader.split(' ')[1];
 
@@ -21,10 +13,6 @@ exports.authenticateToken = async (req, res, next) => {
         }
 
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('[Auth] Token verified:', {
-            userId: decodedToken.userId,
-            email: decodedToken.email
-        });
 
         // Find user and attach to request
         const user = await User.findById(decodedToken.userId).select('-password');
@@ -48,27 +36,6 @@ exports.authenticateToken = async (req, res, next) => {
 
         next();
     } catch (err) {
-        console.error('[Auth] Authentication error:', {
-            error: err.message,
-            stack: err.stack,
-            path: req.path,
-            headers: {
-                'content-type': req.headers['content-type'],
-                'authorization': req.headers.authorization ? 'Bearer [HIDDEN]' : 'Not provided'
-            }
-        });
-        
-        if (err.name === 'JsonWebTokenError') {
-            err.statusCode = 401;
-            err.message = 'Invalid token';
-        } else if (err.name === 'TokenExpiredError') {
-            err.statusCode = 401;
-            err.message = 'Token expired';
-        }
-        
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
         next(err);
     }
 }; 

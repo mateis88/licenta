@@ -328,7 +328,7 @@ const RequestsPage = () => {
                         ) : (
                           <Typography variant="body2" color="text.secondary">
                             {t.noDocuments || 'No documents'}
-                          </Typography>
+          </Typography>
                         )}
                       </TableCell>
                       <TableCell>{formatDate(request.createdAt)}</TableCell>
