@@ -8,6 +8,7 @@ const { authenticateToken } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const path = require('path');
 const eventRoutes = require('./event_routes');
+const LeaveRequest = require('../models/leave_request_schema');
 
 // Serve static files from uploads directory
 router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -228,6 +229,74 @@ router.post('/departments', authenticateToken, async (req, res, next) => {
         res.status(201).json({
             message: 'Department created successfully',
             department
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Create leave request
+router.post('/leave-requests', authenticateToken, async (req, res, next) => {
+    try {
+        const { startDate, endDate, type, reason } = req.body;
+        const userId = req.userId;
+
+        // Get user's department
+        const user = await User.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // If it's not a sick leave, check department limits
+        if (type !== 'sick') {
+            // Get department info
+            const department = await Department.findOne({ name: user.department });
+            if (!department) {
+                const error = new Error('Department not found');
+                error.statusCode = 404;
+                throw error;
+            }
+
+            // Count active leave requests for this department in the requested period
+            const activeLeaves = await LeaveRequest.countDocuments({
+                department: user.department,
+                type: { $ne: 'sick' }, // Exclude sick leaves
+                status: 'approved',
+                $or: [
+                    // Check if the new request overlaps with any existing approved leaves
+                    {
+                        startDate: { $lte: endDate },
+                        endDate: { $gte: startDate }
+                    }
+                ]
+            });
+
+            // If adding this request would exceed the limit
+            if (activeLeaves >= department.maxEmployeesOnLeave) {
+                const error = new Error('Maximum number of employees on leave reached for this department');
+                error.statusCode = 400;
+                throw error;
+            }
+        }
+
+        // Create the leave request
+        const leaveRequest = new LeaveRequest({
+            user: userId,
+            department: user.department,
+            startDate,
+            endDate,
+            type,
+            reason,
+            status: 'pending'
+        });
+
+        await leaveRequest.save();
+
+        res.status(201).json({
+            message: 'Leave request created successfully',
+            leaveRequest
         });
     } catch (err) {
         next(err);

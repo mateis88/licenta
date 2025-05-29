@@ -262,7 +262,7 @@ function ResponsiveAppBar({ showSettings = true }) {
                   }}
                 >
                   {t.manageDepartments || 'Manage Departments'}
-                </Button>
+              </Button>
               </Box>
             )}
           </Box>

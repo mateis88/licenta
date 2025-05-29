@@ -72,13 +72,13 @@ const ManageDepartmentsPage = () => {
     try {
       setFormError('');
       if (!newDepartment.name || !newDepartment.maxEmployeesOnLeave) {
-        setFormError('Please fill in all fields');
+        setFormError(t.fillAllFields);
         return;
       }
 
       const maxEmployees = parseInt(newDepartment.maxEmployeesOnLeave);
       if (isNaN(maxEmployees) || maxEmployees <= 0) {
-        setFormError('Max employees on leave must be a positive number');
+        setFormError(t.maxEmployeesRequired);
         return;
       }
 
@@ -96,10 +96,12 @@ const ManageDepartmentsPage = () => {
 
       setOpenDialog(false);
       setNewDepartment({ name: '', maxEmployeesOnLeave: '' });
-      fetchDepartments(); // Refresh the departments list
+      fetchDepartments();
     } catch (err) {
       console.error('Error creating department:', err);
-      setFormError(err.response?.data?.message || 'Failed to create department');
+      setFormError(err.response?.data?.message === 'Department already exists' 
+        ? t.departmentAlreadyExists 
+        : t.failedToCreateDepartment);
     }
   };
 
@@ -116,8 +118,13 @@ const ManageDepartmentsPage = () => {
       <HomeHeader />
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1">
-            Departments
+          <Typography 
+            variant="h4" 
+            component="h1"
+            color="text.primary"
+            sx={{ fontWeight: 'medium' }}
+          >
+            {t.departments}
           </Typography>
           <Button
             variant="contained"
@@ -130,7 +137,7 @@ const ManageDepartmentsPage = () => {
               }
             }}
           >
-            Create Department
+            {t.createDepartment}
           </Button>
         </Box>
 
@@ -162,20 +169,23 @@ const ManageDepartmentsPage = () => {
                   }}
                 >
                   <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6">
+                    <Typography 
+                      variant="h6"
+                      color="text.primary"
+                    >
                       {department.name}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <PeopleIcon color="action" />
                         <Typography variant="body2" color="text.secondary">
-                          {department.numberOfEmployees} employees
+                          {department.numberOfEmployees} {t.employees}
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <EventBusyIcon color="action" />
                         <Typography variant="body2" color="text.secondary">
-                          {department.currentEmployeesOnLeave}/{department.maxEmployeesOnLeave} on leave
+                          {t.maxSimultaneousLeaves}: {department.maxEmployeesOnLeave}
                         </Typography>
                       </Box>
                     </Box>
@@ -199,7 +209,7 @@ const ManageDepartmentsPage = () => {
         fullWidth
       >
         <DialogTitle>
-          Create New Department
+          {t.createNewDepartment}
           <IconButton
             aria-label="close"
             onClick={() => {
@@ -223,14 +233,14 @@ const ManageDepartmentsPage = () => {
           <Box sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Department Name"
+              label={t.departmentName}
               value={newDepartment.name}
               onChange={(e) => setNewDepartment(prev => ({ ...prev, name: e.target.value }))}
               sx={{ mb: 2 }}
             />
             <TextField
               fullWidth
-              label="Max Employees on Leave"
+              label={t.maxEmployeesOnLeave}
               type="number"
               value={newDepartment.maxEmployeesOnLeave}
               onChange={(e) => setNewDepartment(prev => ({ ...prev, maxEmployeesOnLeave: e.target.value }))}
@@ -246,7 +256,7 @@ const ManageDepartmentsPage = () => {
               setNewDepartment({ name: '', maxEmployeesOnLeave: '' });
             }}
           >
-            Cancel
+            {t.cancel}
           </Button>
           <Button 
             variant="contained" 
@@ -258,7 +268,7 @@ const ManageDepartmentsPage = () => {
               }
             }}
           >
-            Create
+            {t.create}
           </Button>
         </DialogActions>
       </Dialog>

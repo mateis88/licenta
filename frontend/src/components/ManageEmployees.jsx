@@ -130,7 +130,7 @@ const ManageEmployees = () => {
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                placeholder="Search by name or email..."
+                placeholder={t.searchByNameOrEmail || "Search by name or email..."}
                 value={searchQuery}
                 onChange={handleSearchChange}
                 variant="outlined"
@@ -145,15 +145,15 @@ const ManageEmployees = () => {
                 }}
               />
               <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel id="department-filter-label">Department</InputLabel>
+                <InputLabel id="department-filter-label">{t.department}</InputLabel>
                 <Select
                   labelId="department-filter-label"
                   value={selectedDepartment}
-                  label="Department"
+                  label={t.department}
                   onChange={handleDepartmentChange}
                 >
                   <MenuItem value="">
-                    <em>All Departments</em>
+                    <em>{t.allDepartments || "All Departments"}</em>
                   </MenuItem>
                   {departments.map((dept) => (
                     <MenuItem key={dept} value={dept}>
@@ -173,18 +173,17 @@ const ManageEmployees = () => {
             <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
           ) : filteredEmployees.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
-              {searchQuery || selectedDepartment ? 'No matching employees found' : 'No employees found'}
+              {searchQuery || selectedDepartment ? t.noMatchingEmployeesFound || "No matching employees found" : t.noEmployeesFound || "No employees found"}
             </Alert>
           ) : (
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Employee</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Department</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Paid Leave Days</TableCell>
+                    <TableCell>{t.employee}</TableCell>
+                    <TableCell>{t.email}</TableCell>
+                    <TableCell align="center">{t.department}</TableCell>
+                    <TableCell align="center">{t.remainingPaidLeaveDays}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -209,18 +208,8 @@ const ManageEmployees = () => {
                         </Box>
                       </TableCell>
                       <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.department}</TableCell>
-                      <TableCell>
-                        <Typography
-                          sx={{
-                            color: employee.status === 'admin' ? theme.palette.error.main : theme.palette.success.main,
-                            fontWeight: 'medium'
-                          }}
-                        >
-                          {employee.status === 'admin' ? 'Admin' : 'Employee'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{employee.paidLeaveDays}</TableCell>
+                      <TableCell align="center">{employee.department}</TableCell>
+                      <TableCell align="center">{employee.paidLeaveDays}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
