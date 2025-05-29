@@ -9,11 +9,13 @@ import ProfilePage from './components/pages/ProfilePage';
 import SettingsPage from './components/pages/SettingsPage';
 import RequestsPage from './components/pages/RequestsPage';
 import ManageRequestsPage from './components/pages/ManageRequestsPage';
+import ManageDepartmentsPage from './components/pages/ManageDepartmentsPage';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { CalendarProvider } from './contexts/CalendarContext';
 import ManageEmployees from './components/ManageEmployees';
+import DepartmentInfoPage from './components/pages/DepartmentInfoPage';
 
 function App() {
   return (
@@ -61,6 +63,16 @@ function App() {
                 <Route path="/manage-employees" element={
                   <ProtectedRoute>
                     <ManageEmployees />
+                  </ProtectedRoute>
+                } />
+                <Route path="/manage-departments" element={
+                  <ProtectedRoute>
+                    <ManageDepartmentsPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/department/:departmentName" element={
+                  <ProtectedRoute>
+                    <DepartmentInfoPage />
                   </ProtectedRoute>
                 } />
 

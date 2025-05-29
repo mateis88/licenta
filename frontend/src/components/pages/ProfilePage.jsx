@@ -315,7 +315,7 @@ const ProfilePage = () => {
         birthDate: editedUser.birthDate,
         // Only include email and department if user is admin
         ...(isAdmin && {
-          email: editedUser.email,
+        email: editedUser.email,
           department: editedUser.department
         })
       };
@@ -563,9 +563,9 @@ const ProfilePage = () => {
                 </>
               ) : (
                 <>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    {user.email}
-                  </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                {user.email}
+              </Typography>
                   <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
                     {user.department}
                   </Typography>

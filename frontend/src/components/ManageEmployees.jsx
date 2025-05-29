@@ -19,7 +19,8 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Button
 } from '@mui/material';
 import { useNavigate } from 'react-router';
 import { useSettings } from '../contexts/SettingsContext';
@@ -28,6 +29,7 @@ import { Navigate } from 'react-router';
 import HomeHeader from './HomeHeader';
 import SearchIcon from '@mui/icons-material/Search';
 import axios from 'axios';
+import BusinessIcon from '@mui/icons-material/Business';
 
 const ManageEmployees = () => {
   const theme = useTheme();

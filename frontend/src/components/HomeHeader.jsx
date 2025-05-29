@@ -20,6 +20,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BusinessIcon from '@mui/icons-material/Business';
 
 function ResponsiveAppBar({ showSettings = true }) {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
@@ -241,10 +242,27 @@ function ResponsiveAppBar({ showSettings = true }) {
                     '&:hover': {
                       backgroundColor: theme.palette.primary.dark
                     }
-                }}
-              >
+                  }}
+                >
                   {t.manageRequests}
-              </Button>
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/manage-departments')}
+                  startIcon={<BusinessIcon />}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    px: 3,
+                    py: 1,
+                    backgroundColor: theme.palette.info.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.info.dark
+                    }
+                  }}
+                >
+                  {t.manageDepartments || 'Manage Departments'}
+                </Button>
               </Box>
             )}
           </Box>

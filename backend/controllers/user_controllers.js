@@ -45,10 +45,10 @@ exports.login = async (req, res, next) => {
 
         // Transform user data
         const transformedUser = {
-            id: user._id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
+                id: user._id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
             birthDate: user.birthDate,
             status: user.status,
             department: user.department,
@@ -170,11 +170,11 @@ exports.getProfile = async (req, res, next) => {
         }
 
         const user = await User.findById(userId).select('-password');
-        if (!user) {
+            if (!user) {
             const error = new Error('User not found');
-            error.statusCode = 404;
-            throw error;
-        }
+                error.statusCode = 404;
+                throw error;
+            }
 
         // Transform user data
         const transformedUser = {
@@ -199,29 +199,29 @@ exports.getProfile = async (req, res, next) => {
             }
         };
 
-        res.status(200).json({
+            res.status(200).json({
             message: 'Profile retrieved successfully',
             user: transformedUser
-        });
+            });
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+            if (!err.statusCode) {
+                err.statusCode = 500;
+            }
+            next(err);
     }
 };
 
 // Update profile controller
 exports.updateProfile = async (req, res, next) => {
     try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
             const error = new Error('Validation failed');
-            error.statusCode = 422;
-            error.data = errors.array();
+        error.statusCode = 422;
+        error.data = errors.array();
             console.log('[UpdateProfile] Validation errors:', errors.array());
-            throw error;
-        }
+        throw error;
+    }
 
         const userId = req.params.id;
 
@@ -233,11 +233,11 @@ exports.updateProfile = async (req, res, next) => {
         }
 
         const user = await User.findById(userId);
-        if (!user) {
+            if (!user) {
             const error = new Error('User not found');
-            error.statusCode = 404;
-            throw error;
-        }
+                error.statusCode = 404;
+                throw error;
+            }
 
         // Update fields
         const { firstName, lastName, birthDate, bio, phoneNumber, address, email, department } = req.body;
@@ -304,7 +304,7 @@ exports.updateProfile = async (req, res, next) => {
                 state: user.address?.state || '',
                 country: user.address?.country || '',
                 zipCode: user.address?.zipCode || ''
-            }
+                }
         };
 
         res.status(200).json({
@@ -312,10 +312,10 @@ exports.updateProfile = async (req, res, next) => {
             user: transformedUser
         });
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+            if (!err.statusCode) {
+                err.statusCode = 500;
+            }
+            next(err);
     }
 };
 
@@ -331,18 +331,18 @@ exports.uploadProfilePicture = async (req, res, next) => {
             throw error;
         }
 
-        if (!req.file) {
+    if (!req.file) {
             const error = new Error('No file uploaded');
             error.statusCode = 400;
-            throw error;
-        }
+        throw error;
+    }
 
         const user = await User.findById(userId);
-        if (!user) {
+            if (!user) {
             const error = new Error('User not found');
-            error.statusCode = 404;
-            throw error;
-        }
+                error.statusCode = 404;
+                throw error;
+            }
 
         // Update profile picture path
         user.profilePicture = req.file.path.replace(/\\/g, '/');
@@ -428,16 +428,16 @@ exports.getBirthdays = async (req, res, next) => {
 
         console.log('[Birthdays] Returning birthdays:', birthdays.length);
 
-        res.status(200).json({
+            res.status(200).json({
             message: 'Birthdays retrieved successfully',
             birthdays
-        });
+            });
     } catch (err) {
         console.error('[Birthdays] Error:', err);
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+            if (!err.statusCode) {
+                err.statusCode = 500;
+            }
+            next(err);
     }
 };
 
@@ -477,4 +477,25 @@ exports.getAllEmployees = async (req, res, next) => {
         }
         next(err);
     }
-}; 
+};
+
+// Validate token controller
+exports.validateToken = async (req, res, next) => {
+    try {
+        // If we get here, the token is valid (authenticateToken middleware already checked it)
+        // Just return the user data from the request (added by authenticateToken middleware)
+        res.status(200).json({
+            message: 'Token is valid',
+            user: {
+                id: req.userId,
+                email: req.userEmail,
+                status: req.userStatus
+            }
+        });
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
+};

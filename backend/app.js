@@ -35,7 +35,7 @@ const documentRoutes = require('./routes/document_routes');
 const mainRouter = require('./routes/router');
 
 // Routes
-app.use('/', mainRouter); // Main router for auth and user management
+app.use('/', mainRouter); // Main router for auth, user management, and departments
 app.use('/requests', requestRoutes); // Leave request routes
 app.use('/api', documentRoutes); // Document upload routes
 

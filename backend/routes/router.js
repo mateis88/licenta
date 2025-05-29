@@ -1,6 +1,7 @@
 const express = require('express');
 const {body} = require('express-validator');
 const User = require('../models/user_schema')
+const Department = require('../models/department_schema');
 const router = express.Router();
 const user_controllers = require("../controllers/user_controllers");
 const { authenticateToken } = require('../middleware/auth');
@@ -71,59 +72,7 @@ router.post("/register",
 );
 
 // Token validation endpoint
-router.get("/validate-token", authenticateToken, async (req, res, next) => {
-    try {
-        console.log('[Router] Validating token for user:', req.userId);
-        
-        // If we get here, the token is valid (auth middleware would have thrown an error otherwise)
-        const user = await User.findById(req.userId).select('-password');
-        
-        if (!user) {
-            const error = new Error('User not found');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        // Transform user data to match login response format
-        const transformedUser = {
-            id: user._id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            birthDate: user.birthDate,
-            status: user.status,
-            profilePicture: user.profilePicture,
-            bio: user.bio || '',
-            phoneNumber: user.phoneNumber || '',
-            paidLeaveDays: user.paidLeaveDays,
-            lastLeaveUpdate: user.lastLeaveUpdate,
-            address: {
-                street: user.address?.street || '',
-                city: user.address?.city || '',
-                state: user.address?.state || '',
-                country: user.address?.country || '',
-                zipCode: user.address?.zipCode || ''
-            }
-        };
-
-        console.log('[Router] Token validation successful for user:', transformedUser.email);
-
-        res.status(200).json({
-            valid: true,
-            user: transformedUser
-        });
-    } catch (err) {
-        console.error('[Router] Token validation error:', {
-            error: err.message,
-            stack: err.stack
-        });
-        
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
-    }
-});
+router.get("/validate-token", authenticateToken, user_controllers.validateToken);
 
 // Profile routes
 router.get("/profile/:id", authenticateToken, user_controllers.getProfile);
@@ -176,5 +125,113 @@ router.use('/events', eventRoutes);
 
 // Get all employees (admin only)
 router.get('/employees', authenticateToken, user_controllers.getAllEmployees);
+
+// Department routes
+router.get('/departments', authenticateToken, async (req, res, next) => {
+    try {
+        // Get all departments from the departments collection
+        const departments = await Department.find()
+            .select('name numberOfEmployees maxEmployeesOnLeave currentEmployeesOnLeave')
+            .sort({ name: 1 });
+        
+        // Format the response
+        const formattedDepartments = departments.map(dept => ({
+            id: dept._id,
+            name: dept.name,
+            numberOfEmployees: dept.numberOfEmployees,
+            maxEmployeesOnLeave: dept.maxEmployeesOnLeave,
+            currentEmployeesOnLeave: dept.currentEmployeesOnLeave
+        }));
+
+        res.json({ departments: formattedDepartments });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Get department details by name
+router.get('/departments/:name', authenticateToken, async (req, res, next) => {
+    try {
+        const departmentName = req.params.name;
+        
+        // Find department in the departments collection
+        let department = await Department.findOne({ name: departmentName });
+        
+        // If department doesn't exist in departments collection, create it
+        if (!department) {
+            // Count actual employees in this department
+            const employeeCount = await User.countDocuments({ department: departmentName });
+            
+            // Create new department with default values
+            department = new Department({
+                name: departmentName,
+                numberOfEmployees: employeeCount,
+                maxEmployeesOnLeave: Math.ceil(employeeCount * 0.2), // Default to 20% of employees
+                currentEmployeesOnLeave: 0
+            });
+            await department.save();
+        }
+
+        // Get list of employees in this department
+        const employees = await User.find({ department: departmentName })
+            .select('firstName lastName email status profilePicture')
+            .sort({ firstName: 1, lastName: 1 });
+
+        res.json({
+            department: {
+                ...department.toObject(),
+                employees
+            }
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Department routes
+router.post('/departments', authenticateToken, async (req, res, next) => {
+    try {
+        // Check if user is admin
+        if (req.userStatus !== 'admin') {
+            const error = new Error('Access denied. Admin privileges required.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        const { name, maxEmployeesOnLeave } = req.body;
+
+        // Validate input
+        if (!name || !maxEmployeesOnLeave) {
+            const error = new Error('Department name and max employees on leave are required');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Check if department already exists
+        const existingDepartment = await Department.findOne({ name });
+        if (existingDepartment) {
+            const error = new Error('Department already exists');
+            error.statusCode = 409;
+            throw error;
+        }
+
+        // Create new department
+        const department = new Department({
+            name,
+            maxEmployeesOnLeave,
+            numberOfEmployees: 0,
+            currentEmployeesOnLeave: 0
+        });
+
+        await department.save();
+
+        res.status(201).json({
+            message: 'Department created successfully',
+            department
+        });
+    } catch (err) {
+        next(err);
+    }
+});
 
 module.exports = router;
