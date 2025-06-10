@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Button, useTheme, Paper, Typography, Box, IconButton } from '@mui/material';
+import { Button, useTheme, Paper, Typography, Box, IconButton, Grid, Tooltip, Badge } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import InfoBox from './InfoBox';
 import '../styles/Calendar.css';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useCalendar } from '../contexts/CalendarContext';
+import { isRecurringEventOccurrence } from '../utils/recurringEvents';
+import { isPublicHoliday, getHolidayName } from '../utils/holidays';
 import axios from 'axios';
 import CakeIcon from '@mui/icons-material/Cake';
+import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -31,85 +35,16 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Orthodox Easter dates for the next 10 years
-const orthodoxEasterDates = {
-  2024: { month: 4, day: 5 },  // May 5, 2024
-  2025: { month: 3, day: 20 }, // April 20, 2025
-  2026: { month: 3, day: 12 }, // April 12, 2026
-  2027: { month: 4, day: 2 },  // May 2, 2027
-  2028: { month: 3, day: 16 }, // April 16, 2028
-  2029: { month: 3, day: 8 },  // April 8, 2029
-  2030: { month: 4, day: 28 }, // April 28, 2030
-  2031: { month: 4, day: 13 }, // April 13, 2031
-  2032: { month: 4, day: 2 },  // May 2, 2032
-  2033: { month: 3, day: 24 }, // April 24, 2033
-};
-
-// Function to get Orthodox Easter date for a given year
-const getOrthodoxEaster = (year) => {
-  const easterDate = orthodoxEasterDates[year];
-  if (!easterDate) {
-    console.warn(`No Orthodox Easter date available for year ${year}`);
-    return null;
-  }
-  return new Date(year, easterDate.month, easterDate.day, 12, 0, 0);
-};
-
-// Function to get all Romanian holidays for a given year
-const getRomanianHolidays = (year) => {
-  console.log(`Getting holidays for year: ${year}`);
-  
-  // Helper function to create dates at noon to avoid timezone issues
-  const createDate = (y, m, d) => new Date(y, m, d, 12, 0, 0);
-  
-  const holidays = [
-    { date: createDate(year, 0, 1), name: 'Anul Nou' }, // New Year's Day
-    { date: createDate(year, 0, 24), name: 'Ziua Unirii Principatelor Române' }, // Union Day
-    { date: createDate(year, 4, 1), name: 'Ziua Muncii' }, // Labor Day
-    { date: createDate(year, 5, 1), name: 'Ziua Copilului' }, // Children's Day
-    { date: createDate(year, 7, 15), name: 'Adormirea Maicii Domnului' }, // Assumption of Mary
-    { date: createDate(year, 11, 1), name: 'Ziua Națională a României' }, // National Day
-    { date: createDate(year, 11, 25), name: 'Crăciunul' }, // Christmas Day
-    { date: createDate(year, 11, 26), name: 'A doua zi de Crăciun' } // Second Day of Christmas
-  ];
-
-  // Get Orthodox Easter and related holidays
-  const easterSunday = getOrthodoxEaster(year);
-  if (easterSunday) {
-    console.log('Easter Sunday:', easterSunday.toLocaleDateString());
-    
-    const goodFriday = new Date(easterSunday);
-    goodFriday.setDate(easterSunday.getDate() - 2);
-    
-    const easterMonday = new Date(easterSunday);
-    easterMonday.setDate(easterSunday.getDate() + 1);
-    
-    holidays.push(
-      { date: goodFriday, name: 'Vinerea Mare' },
-      { date: easterSunday, name: 'Paștele Ortodox' },
-      { date: easterMonday, name: 'A doua zi de Paște' }
-    );
-  }
-
-  // Log all holidays for debugging
-  console.log('All holidays:', holidays.map(h => ({
-    name: h.name,
-    date: h.date.toLocaleDateString()
-  })));
-
-  return holidays;
-};
-
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState([]);
-  const [events, setEvents] = useState([]);
   const [showLegend, setShowLegend] = useState(false);
   const calendarRef = useRef(null);
   const infoBoxRef = useRef(null);
   const { translations } = useSettings();
   const { user } = useAuth();
+  const { events, updateEvents, refreshTrigger } = useCalendar();
   const theme = useTheme();
   const t = translations.calendar;
   const [birthdays, setBirthdays] = useState([]);
@@ -161,38 +96,6 @@ const Calendar = () => {
       currentDate.getMonth() === today.getMonth() &&
       currentDate.getFullYear() === today.getFullYear()
     );
-  };
-
-  // Get holidays for the current year
-  const holidays = getRomanianHolidays(currentDate.getFullYear());
-
-  // Check if a date is a public holiday
-  const isPublicHoliday = (date) => {
-    // Create a date at noon for comparison to avoid timezone issues
-    const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
-    
-    const isHoliday = holidays.some(holiday => {
-      const isMatch = holiday.date.getDate() === compareDate.getDate() &&
-        holiday.date.getMonth() === compareDate.getMonth() &&
-        holiday.date.getFullYear() === compareDate.getFullYear();
-      
-      if (isMatch) {
-        console.log('Found holiday match:', holiday.name, 'on', compareDate.toLocaleDateString());
-      }
-      return isMatch;
-    });
-    
-    return isHoliday;
-  };
-
-  // Get holiday name if date is a holiday
-  const getHolidayName = (date) => {
-    const holiday = holidays.find(h => 
-      h.date.getDate() === date.getDate() &&
-      h.date.getMonth() === date.getMonth() &&
-      h.date.getFullYear() === date.getFullYear()
-    );
-    return holiday ? holiday.name : null;
   };
 
   // Check if a day is a weekend
@@ -273,14 +176,14 @@ const Calendar = () => {
           }
         );
         console.log('[Calendar] Received events:', response.data.events);
-        setEvents(response.data.events || []);
+        updateEvents(response.data.events || []);
       } catch (err) {
         console.error('[Calendar] Error fetching events:', err);
       }
     };
 
     fetchEvents();
-  }, [user?.email]);
+  }, [user?.email, updateEvents, refreshTrigger]);
 
   // Add this new function to check if a day has events
   const hasEvents = (date) => {
@@ -288,16 +191,26 @@ const Calendar = () => {
     console.log('[Calendar] Current events state:', events);
     
     const hasEvent = events.some(event => {
-      const eventDate = new Date(event.date);
-      console.log('[Calendar] Comparing with event date:', eventDate.toISOString());
-      const isMatch = eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear();
-      
-      if (isMatch) {
-        console.log('[Calendar] Found matching event:', event);
+      // For non-recurring events, check exact date match
+      if (!event.recurring) {
+        const eventDate = new Date(event.date);
+        console.log('[Calendar] Comparing with event date:', eventDate.toISOString());
+        const isMatch = eventDate.getDate() === date.getDate() &&
+          eventDate.getMonth() === date.getMonth() &&
+          eventDate.getFullYear() === date.getFullYear();
+        
+        if (isMatch) {
+          console.log('[Calendar] Found matching event:', event);
+        }
+        return isMatch;
+      } else {
+        // For recurring events, check if this date is an occurrence
+        const isOccurrence = isRecurringEventOccurrence(event, date);
+        if (isOccurrence) {
+          console.log('[Calendar] Found recurring event occurrence:', event);
+        }
+        return isOccurrence;
       }
-      return isMatch;
     });
     
     console.log('[Calendar] Has event:', hasEvent);

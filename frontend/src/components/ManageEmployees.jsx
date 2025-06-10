@@ -44,14 +44,35 @@ const ManageEmployees = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // List of all departments
-  const departments = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'];
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState('');
 
   // Only allow access to admin users
   if (!user || user.status !== 'admin') {
     return <Navigate to="/home" replace />;
   }
+
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/departments', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        setDepartments(response.data.departments.map(dept => dept.name));
+        setDepartmentsLoading(false);
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+        setDepartmentsError(err.response?.data?.message || 'Failed to fetch departments');
+        setDepartmentsLoading(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   // Fetch employees
   useEffect(() => {
@@ -144,26 +165,47 @@ const ManageEmployees = () => {
                   ),
                 }}
               />
-              <FormControl size="small" sx={{ minWidth: 150 }}>
+              <FormControl size="small" sx={{ minWidth: 150 }} error={!!departmentsError}>
                 <InputLabel id="department-filter-label">{t.department}</InputLabel>
                 <Select
                   labelId="department-filter-label"
                   value={selectedDepartment}
                   label={t.department}
                   onChange={handleDepartmentChange}
+                  disabled={departmentsLoading}
                 >
                   <MenuItem value="">
                     <em>{t.allDepartments || "All Departments"}</em>
                   </MenuItem>
-                  {departments.map((dept) => (
-                    <MenuItem key={dept} value={dept}>
-                      {dept}
+                  {departmentsLoading ? (
+                    <MenuItem disabled>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CircularProgress size={16} />
+                        <Typography variant="body2">Loading...</Typography>
+                      </Box>
                     </MenuItem>
-                  ))}
+                  ) : departments.length === 0 ? (
+                    <MenuItem disabled>No departments available</MenuItem>
+                  ) : (
+                    departments.map((dept) => (
+                      <MenuItem key={dept} value={dept}>
+                        {dept}
+                      </MenuItem>
+                    ))
+                  )}
                 </Select>
+                {departmentsError && (
+                  <Typography color="error" variant="caption" sx={{ ml: 2, mt: 0.5 }}>
+                    {departmentsError}
+                  </Typography>
+                )}
               </FormControl>
             </Box>
           </Box>
+
+          {departmentsError && (
+            <Alert severity="error" sx={{ mb: 2 }}>{departmentsError}</Alert>
+          )}
 
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>

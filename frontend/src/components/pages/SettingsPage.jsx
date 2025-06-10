@@ -43,9 +43,6 @@ const SettingsPage = () => {
               >
                 <MenuItem value="light">{t.theme.light}</MenuItem>
                 <MenuItem value="dark">{t.theme.dark}</MenuItem>
-                <MenuItem value="green">{t.theme.green}</MenuItem>
-                <MenuItem value="blue">{t.theme.blue}</MenuItem>
-                <MenuItem value="darkBlue">{t.theme.darkBlue}</MenuItem>
               </Select>
             </FormControl>
 

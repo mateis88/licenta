@@ -13,6 +13,19 @@ const LeaveRequest = require('../models/leave_request_schema');
 // Serve static files from uploads directory
 router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Add this helper function at the top level
+const getCurrentEmployeesOnLeave = async (departmentName) => {
+  const now = new Date();
+  const activeLeaves = await LeaveRequest.find({
+    department: departmentName,
+    startDate: { $lte: now },
+    endDate: { $gte: now },
+    status: 'approved',
+    type: { $ne: 'sick' } // Exclude sick leaves
+  });
+  return activeLeaves.length;
+};
+
 router.post("/login", 
     [
         body('email')
@@ -235,6 +248,45 @@ router.post('/departments', authenticateToken, async (req, res, next) => {
     }
 });
 
+// Delete department
+router.delete('/departments/:id', authenticateToken, async (req, res, next) => {
+    try {
+        // Check if user is admin
+        if (req.userStatus !== 'admin') {
+            const error = new Error('Access denied. Admin privileges required.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        const departmentId = req.params.id;
+
+        // Find the department
+        const department = await Department.findById(departmentId);
+        if (!department) {
+            const error = new Error('Department not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Check if there are any employees in this department
+        const employeeCount = await User.countDocuments({ department: department.name });
+        if (employeeCount > 0) {
+            const error = new Error(`Cannot delete department with ${employeeCount} employee(s). Please reassign or remove all employees first.`);
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Delete the department
+        await Department.findByIdAndDelete(departmentId);
+
+        res.status(200).json({
+            message: 'Department deleted successfully'
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // Create leave request
 router.post('/leave-requests', authenticateToken, async (req, res, next) => {
     try {
@@ -301,6 +353,52 @@ router.post('/leave-requests', authenticateToken, async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+});
+
+// Add this new route
+router.put('/departments/:departmentName/max-leave', authenticateToken, async (req, res, next) => {
+  try {
+    const { departmentName } = req.params;
+    const { maxEmployeesOnLeave } = req.body;
+
+    // Check if user is admin
+    if (req.user.status !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can update department settings' });
+    }
+
+    // Validate input
+    if (!maxEmployeesOnLeave || isNaN(maxEmployeesOnLeave) || maxEmployeesOnLeave < 1) {
+      return res.status(400).json({ message: 'Max employees on leave must be a positive number' });
+    }
+
+    // Get current number of employees on leave
+    const currentEmployeesOnLeave = await getCurrentEmployeesOnLeave(departmentName);
+
+    // Validate that new max is not less than current employees on leave
+    if (maxEmployeesOnLeave < currentEmployeesOnLeave) {
+      return res.status(400).json({ 
+        message: `Cannot set max employees on leave lower than current number of employees on leave (${currentEmployeesOnLeave})`
+      });
+    }
+
+    // Update department
+    const department = await Department.findOneAndUpdate(
+      { name: departmentName },
+      { maxEmployeesOnLeave },
+      { new: true }
+    );
+
+    if (!department) {
+      return res.status(404).json({ message: 'Department not found' });
+    }
+
+    res.json({ 
+      department,
+      message: 'Department updated successfully'
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;

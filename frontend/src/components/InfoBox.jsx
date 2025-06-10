@@ -16,7 +16,16 @@ import {
   Grid,
   IconButton,
   Collapse,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  Checkbox,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormLabel,
+  Select,
+  MenuItem,
+  InputLabel
 } from "@mui/material";
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import CakeIcon from '@mui/icons-material/Cake';
@@ -26,15 +35,23 @@ import EventIcon from '@mui/icons-material/Event';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import DeleteIcon from '@mui/icons-material/Delete';
+import RepeatIcon from '@mui/icons-material/Repeat';
+import PersonIcon from '@mui/icons-material/Person';
+import PublicIcon from '@mui/icons-material/Public';
+import CelebrationIcon from '@mui/icons-material/Celebration';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useCalendar } from '../contexts/CalendarContext';
+import { isRecurringEventOccurrence } from '../utils/recurringEvents';
+import { isPublicHoliday, getHolidayName } from '../utils/holidays';
 import axios from 'axios';
 import "../styles/InfoBox.css";
 
 const InfoBox = ({ date, onClose }) => {
+  const theme = useTheme();
   const { translations } = useSettings();
   const { user } = useAuth();
-  const theme = useTheme();
+  const { refreshEvents } = useCalendar();
   const t = translations.common;
   const [birthdays, setBirthdays] = useState([]);
   const [events, setEvents] = useState([]);
@@ -49,7 +66,10 @@ const InfoBox = ({ date, onClose }) => {
     location: '',
     startTime: '',
     endTime: '',
-    guests: []
+    guests: [],
+    recurring: false,
+    frequency: 'weekly',
+    type: 'personal'
   });
   const [eventError, setEventError] = useState('');
   const [expandedEvents, setExpandedEvents] = useState({});
@@ -117,12 +137,29 @@ const InfoBox = ({ date, onClose }) => {
           }
         );
 
-        // Filter events for the selected date
+        // Filter events for the selected date (including recurring events)
         const dayEvents = response.data.events.filter(event => {
-          const eventDate = new Date(event.date);
-          return eventDate.getDate() === date.getDate() &&
-                 eventDate.getMonth() === date.getMonth() &&
-                 eventDate.getFullYear() === date.getFullYear();
+          if (!event.recurring) {
+            // For non-recurring events, check exact date match
+            const eventDate = new Date(event.date);
+            return eventDate.getDate() === date.getDate() &&
+                   eventDate.getMonth() === date.getMonth() &&
+                   eventDate.getFullYear() === date.getFullYear();
+          } else {
+            // For recurring events, check if this date is an occurrence
+            return isRecurringEventOccurrence(event, date);
+          }
+        }).map(event => {
+          // For recurring events, create a unique ID for this occurrence
+          if (event.recurring) {
+            return {
+              ...event,
+              _id: `${event._id}_${date.getTime()}`,
+              originalEventId: event._id,
+              isRecurringOccurrence: true
+            };
+          }
+          return event;
         });
 
         setEvents(dayEvents);
@@ -137,10 +174,10 @@ const InfoBox = ({ date, onClose }) => {
   }, [date, user?.email]);
 
   const handleEventFormChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setEventForm(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -181,13 +218,22 @@ const InfoBox = ({ date, onClose }) => {
         return;
       }
 
+      const eventData = {
+        ...eventForm,
+        date: date.toISOString(),
+        email: user.email
+      };
+
+      // Add recurring event data if it's a recurring event
+      if (eventForm.recurring) {
+        eventData.recurring = true;
+        eventData.frequency = eventForm.frequency;
+        eventData.originalDate = date.toISOString();
+      }
+
       const response = await axios.post(
         'http://localhost:3000/events',
-        {
-          ...eventForm,
-          date: date.toISOString(),
-          email: user.email
-        },
+        eventData,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -205,9 +251,15 @@ const InfoBox = ({ date, onClose }) => {
         location: '',
         startTime: '',
         endTime: '',
-        guests: []
+        guests: [],
+        recurring: false,
+        frequency: 'weekly',
+        type: 'personal'
       });
       setShowEventForm(false);
+
+      // Refresh events
+      refreshEvents();
     } catch (err) {
       setEventError(err.response?.data?.message || t.failedToCreateEvent);
     }
@@ -217,8 +269,12 @@ const InfoBox = ({ date, onClose }) => {
     try {
       console.log('[InfoBox] Attempting to delete event:', eventId);
       
+      // For recurring events, we need to delete the original event
+      const eventToDelete = events.find(event => event._id === eventId);
+      const actualEventId = eventToDelete?.originalEventId || eventId;
+      
       const response = await axios.delete(
-        `http://localhost:3000/events/${eventId}`,
+        `http://localhost:3000/events/${actualEventId}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -230,10 +286,21 @@ const InfoBox = ({ date, onClose }) => {
       
       // Remove the deleted event from the list
       setEvents(prev => {
-        const updatedEvents = prev.filter(event => event._id !== eventId);
+        const updatedEvents = prev.filter(event => {
+          // For recurring events, remove all occurrences of the same original event
+          if (eventToDelete?.recurring) {
+            return event.originalEventId !== eventToDelete.originalEventId;
+          }
+          // For non-recurring events, just remove the specific event
+          return event._id !== eventId;
+        });
+        
         console.log('[InfoBox] Updated events list:', updatedEvents);
         return updatedEvents;
       });
+
+      // Refresh events
+      refreshEvents();
     } catch (err) {
       console.error('[InfoBox] Error deleting event:', {
         error: err.message,
@@ -254,6 +321,16 @@ const InfoBox = ({ date, onClose }) => {
       ...prev,
       [eventId]: !prev[eventId]
     }));
+  };
+
+  // Sort events chronologically by start time
+  const sortEventsByTime = (eventsList) => {
+    return [...eventsList].sort((a, b) => {
+      // Convert time strings to comparable values (HH:MM format)
+      const timeA = a.startTime.replace(':', '');
+      const timeB = b.startTime.replace(':', '');
+      return parseInt(timeA) - parseInt(timeB);
+    });
   };
 
   if (!date) return null;
@@ -296,7 +373,9 @@ const InfoBox = ({ date, onClose }) => {
         <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
           {formatDate(date)}
         </Typography>
-        <Button size="small" onClick={onClose}>{t.close}</Button>
+        <IconButton size="small" onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
       </div>
       
       <Divider />
@@ -391,232 +470,421 @@ const InfoBox = ({ date, onClose }) => {
           )}
         </Box>
 
-        <Divider sx={{ my: 2 }} />
-
-        {/* Events Section */}
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1, 
-            mb: 2
-          }}>
-            <Typography 
-              variant="subtitle1" 
-              sx={{ 
-                fontWeight: 'bold',
-                color: theme.palette.text.primary 
+        {/* Holiday Section */}
+        {isPublicHoliday(date) && (
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: theme.palette.text.primary 
+                }}
+              >
+                {t.publicHoliday || 'Public Holiday'}
+              </Typography>
+              <Box
+                sx={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  '& svg': {
+                    fontSize: '1.75rem',
+                    filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.1))',
+                    color: theme.palette.mode === 'dark' 
+                      ? '#FFD54F' 
+                      : '#E65100'
+                  }
+                }}
+              >
+                <CelebrationIcon />
+              </Box>
+            </Box>
+            
+            <Paper
+              elevation={1}
+              sx={{
+                p: 2,
+                borderRadius: 1,
+                backgroundColor: theme.palette.mode === 'dark' 
+                  ? 'rgba(255, 193, 7, 0.15)' 
+                  : 'rgba(255, 193, 7, 0.1)',
+                border: `1px solid ${theme.palette.mode === 'dark' 
+                  ? 'rgba(255, 193, 7, 0.4)' 
+                  : 'rgba(255, 193, 7, 0.3)'}`
               }}
             >
-              {t.events}
-            </Typography>
-            <EventIcon sx={{ color: theme.palette.primary.main }} />
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: theme.palette.mode === 'dark' 
+                    ? '#FFD54F' 
+                    : '#E65100',
+                  fontWeight: 'bold',
+                  mb: 1
+                }}
+              >
+                {getHolidayName(date)}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 213, 79, 0.9)' 
+                    : 'rgba(230, 81, 0, 0.8)',
+                  lineHeight: 1.5
+                }}
+              >
+                {t.holidayDescription || 'This is a public holiday in Romania. Most businesses and government offices are closed.'}
+              </Typography>
+            </Paper>
           </Box>
+        )}
 
-          {loadingEvents ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-              <CircularProgress size={24} />
+        {/* Events Section - Show on all days */}
+        <>
+          <Divider sx={{ my: 2 }} />
+
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1, 
+              mb: 2
+            }}>
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: theme.palette.text.primary 
+                }}
+              >
+                {t.events}
+              </Typography>
+              <EventIcon sx={{ color: theme.palette.primary.main }} />
             </Box>
-          ) : events.length === 0 ? (
-            <Typography 
-              variant="body2" 
-              sx={{ color: theme.palette.text.secondary }}
-            >
-              {t.noEvents}
-            </Typography>
-          ) : (
-            <List>
-              {events.map((event) => (
-                <Paper
-                  key={event._id}
-                  elevation={1}
-                  sx={{
-                    mb: 1,
-                    borderRadius: 1,
-                    overflow: 'hidden'
-                  }}
-                >
-                  <ListItem 
-                    sx={{ 
-                      px: 2,
-                      py: 1,
-                      cursor: 'pointer'
+
+            {loadingEvents ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : events.length === 0 ? (
+              <Typography 
+                variant="body2" 
+                sx={{ color: theme.palette.text.secondary }}
+              >
+                {t.noEvents}
+              </Typography>
+            ) : (
+              <List>
+                {sortEventsByTime(events).map((event) => (
+                  <Paper
+                    key={event._id}
+                    elevation={1}
+                    sx={{
+                      mb: 1,
+                      borderRadius: 1,
+                      overflow: 'hidden'
                     }}
-                    onClick={() => toggleEvent(event._id)}
                   >
-                    <Box sx={{ 
-                      width: '100%', 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center'
-                    }}>
-                      <Typography 
-                        variant="subtitle2" 
-                        sx={{ 
-                          fontWeight: 'bold',
-                          color: theme.palette.text.primary 
-                        }}
-                      >
-                        {event.name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {!isPastDate() && (
-                          <IconButton 
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteEvent(event._id);
+                    <ListItem 
+                      sx={{ 
+                        px: 2,
+                        py: 1,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => toggleEvent(event._id)}
+                    >
+                      <Box sx={{ 
+                        width: '100%', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center'
+                      }}>
+                        <Typography 
+                          variant="subtitle2" 
+                          sx={{ 
+                            fontWeight: 'bold',
+                            color: theme.palette.text.primary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          {event.name}
+                          {event.recurring && (
+                            <RepeatIcon 
+                              fontSize="small" 
+                              sx={{ 
+                                color: theme.palette.primary.main,
+                                fontSize: '1rem'
+                              }} 
+                            />
+                          )}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {!isPastDate() && event.email === user.email && (
+                            <IconButton 
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteEvent(event._id);
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                          <IconButton size="small">
+                            {expandedEvents[event._id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    </ListItem>
+
+                    <Collapse in={expandedEvents[event._id]}>
+                      <Box sx={{ px: 2, pb: 2 }}>
+                        {event.description && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              mb: 1
                             }}
                           >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
+                            {event.description}
+                          </Typography>
                         )}
-                        <IconButton size="small">
-                          {expandedEvents[event._id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                        </IconButton>
-                      </Box>
-                    </Box>
-                  </ListItem>
-
-                  <Collapse in={expandedEvents[event._id]}>
-                    <Box sx={{ px: 2, pb: 2 }}>
-                      {event.description && (
                         <Typography 
                           variant="body2" 
                           sx={{ 
                             color: theme.palette.text.secondary,
-                            mb: 1
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
                           }}
                         >
-                          {event.description}
+                          <EventIcon fontSize="small" />
+                          {`${event.location} • ${event.startTime} - ${event.endTime}`}
                         </Typography>
-                      )}
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: theme.palette.text.secondary,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1
-                        }}
-                      >
-                        <EventIcon fontSize="small" />
-                        {`${event.location} • ${event.startTime} - ${event.endTime}`}
-                      </Typography>
-                    </Box>
-                  </Collapse>
-                </Paper>
-              ))}
-            </List>
-          )}
-        </Box>
-
-        {/* Event Creation Form */}
-        <Collapse in={showEventForm}>
-          <Box sx={{ p: 2, mt: 2, backgroundColor: theme.palette.background.default, borderRadius: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
-                {t.createEvent}
-              </Typography>
-              <IconButton onClick={() => setShowEventForm(false)} size="small">
-                <CloseIcon />
-              </IconButton>
-            </Box>
-
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={t.eventName}
-                  name="name"
-                  value={eventForm.name}
-                  onChange={handleEventFormChange}
-                  required
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={t.eventDescription}
-                  name="description"
-                  value={eventForm.description}
-                  onChange={handleEventFormChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={t.location}
-                  name="location"
-                  value={eventForm.location}
-                  onChange={handleEventFormChange}
-                  required
-                  size="small"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TimePicker
-                  label={t.startTime}
-                  value={eventForm.startTime ? new Date(`2000-01-01T${eventForm.startTime}`) : null}
-                  onChange={handleTimeChange('startTime')}
-                  format="HH:mm"
-                  ampm={false}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      required: true,
-                      size: "small"
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TimePicker
-                  label={t.endTime}
-                  value={eventForm.endTime ? new Date(`2000-01-01T${eventForm.endTime}`) : null}
-                  onChange={handleTimeChange('endTime')}
-                  format="HH:mm"
-                  ampm={false}
-                  minTime={eventForm.startTime ? new Date(`2000-01-01T${eventForm.startTime}`) : undefined}
-                  maxTime={new Date('2000-01-01T23:59')}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      required: true,
-                      size: "small"
-                    }
-                  }}
-                />
-              </Grid>
-              {eventError && (
-                <Grid item xs={12}>
-                  <Typography color="error" variant="body2">
-                    {eventError}
-                  </Typography>
-                </Grid>
-              )}
-              <Grid item xs={12}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleCreateEvent}
-                  fullWidth
-                  sx={{ mt: 1 }}
-                >
-                  {t.create}
-                </Button>
-              </Grid>
-            </Grid>
+                        {event.type === 'public' && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              mt: 1
+                            }}
+                          >
+                            <PersonIcon fontSize="small" />
+                            {t.createdBy || 'Created by'}: {event.email}
+                          </Typography>
+                        )}
+                        {event.recurring && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: theme.palette.primary.main,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              mt: 1
+                            }}
+                          >
+                            <RepeatIcon fontSize="small" />
+                            {event.frequency === 'weekly' && (t.everyWeekOnSelectedDay || 'Every week on the selected weekday')}
+                            {event.frequency === 'monthly' && (t.everyMonthOnSelectedDate || 'Every month on the selected date')}
+                            {event.frequency === 'yearly' && (t.everyYearOnSameDay || 'Every year on the same day')}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Collapse>
+                  </Paper>
+                ))}
+              </List>
+            )}
           </Box>
-        </Collapse>
+
+          {/* Event Creation Form */}
+          <Collapse in={showEventForm}>
+            <Box sx={{ p: 2, mt: 2, backgroundColor: theme.palette.background.default, borderRadius: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
+                  {t.createEvent}
+                </Typography>
+                <IconButton onClick={() => setShowEventForm(false)} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>{t.eventType || 'Event Type'}</InputLabel>
+                    <Select
+                      name="type"
+                      value={eventForm.type}
+                      onChange={handleEventFormChange}
+                      label={t.eventType || 'Event Type'}
+                    >
+                      <MenuItem value="personal">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PersonIcon fontSize="small" />
+                          {t.personalEvent || 'Personal Event'}
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="public">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PublicIcon fontSize="small" />
+                          {t.publicEvent || 'Public Event'}
+                        </Box>
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t.eventName}
+                    name="name"
+                    value={eventForm.name}
+                    onChange={handleEventFormChange}
+                    required
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t.eventDescription}
+                    name="description"
+                    value={eventForm.description}
+                    onChange={handleEventFormChange}
+                    multiline
+                    rows={2}
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t.location}
+                    name="location"
+                    value={eventForm.location}
+                    onChange={handleEventFormChange}
+                    required
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TimePicker
+                    label={t.startTime}
+                    value={eventForm.startTime ? new Date(`2000-01-01T${eventForm.startTime}`) : null}
+                    onChange={handleTimeChange('startTime')}
+                    format="HH:mm"
+                    ampm={false}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true,
+                        size: "small"
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TimePicker
+                    label={t.endTime}
+                    value={eventForm.endTime ? new Date(`2000-01-01T${eventForm.endTime}`) : null}
+                    onChange={handleTimeChange('endTime')}
+                    format="HH:mm"
+                    ampm={false}
+                    minTime={eventForm.startTime ? new Date(`2000-01-01T${eventForm.startTime}`) : undefined}
+                    maxTime={new Date('2000-01-01T23:59')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true,
+                        size: "small"
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={eventForm.recurring}
+                        onChange={handleEventFormChange}
+                        name="recurring"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <RepeatIcon fontSize="small" />
+                        {t.recurring || 'Recurring Event'}
+                      </Box>
+                    }
+                  />
+                </Grid>
+                {eventForm.recurring && (
+                  <Grid item xs={12}>
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend" sx={{ mb: 1 }}>
+                        {t.recurrenceFrequency || 'Recurrence Frequency'}
+                      </FormLabel>
+                      <RadioGroup
+                        name="frequency"
+                        value={eventForm.frequency}
+                        onChange={handleEventFormChange}
+                      >
+                        <FormControlLabel 
+                          value="weekly" 
+                          control={<Radio />} 
+                          label={t.everyWeekOnSelectedDay || 'Every week on the selected weekday'} 
+                        />
+                        <FormControlLabel 
+                          value="monthly" 
+                          control={<Radio />} 
+                          label={t.everyMonthOnSelectedDate || 'Every month on the selected date'} 
+                        />
+                        <FormControlLabel 
+                          value="yearly" 
+                          control={<Radio />} 
+                          label={t.everyYearOnSameDay || 'Every year on the same day'} 
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  </Grid>
+                )}
+                {eventError && (
+                  <Grid item xs={12}>
+                    <Typography color="error" variant="body2">
+                      {eventError}
+                    </Typography>
+                  </Grid>
+                )}
+                <Grid item xs={12}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleCreateEvent}
+                    fullWidth
+                    sx={{ mt: 1 }}
+                  >
+                    {t.create}
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+          </Collapse>
+        </>
       </Box>
 
-      {/* Create Event Button - Only show for future dates */}
-      {!isPastDate() && (
+      {/* Create Event Button - Only show for future dates and when form is not open */}
+      {!isPastDate() && !showEventForm && (
         <Box sx={{ 
           position: 'absolute', 
           bottom: 16, 

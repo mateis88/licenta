@@ -15,7 +15,8 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  IconButton
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import HomeHeader from '../HomeHeader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +24,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import axios from 'axios';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
 import PeopleIcon from '@mui/icons-material/People';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 
@@ -42,6 +44,9 @@ const ManageDepartmentsPage = () => {
     maxEmployeesOnLeave: ''
   });
   const [formError, setFormError] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Only allow access to admin users
   if (!user || user.status !== 'admin') {
@@ -105,6 +110,41 @@ const ManageDepartmentsPage = () => {
     }
   };
 
+  const handleDeleteDepartment = async () => {
+    if (!departmentToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      setError('');
+
+      await axios.delete(`http://localhost:3000/departments/${departmentToDelete.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      setDeleteDialogOpen(false);
+      setDepartmentToDelete(null);
+      fetchDepartments();
+    } catch (err) {
+      console.error('Error deleting department:', err);
+      setError(err.response?.data?.message || 'Failed to delete department');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const openDeleteDialog = (department) => {
+    setDepartmentToDelete(department);
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setDepartmentToDelete(null);
+    setError('');
+  };
+
   return (
     <Box
       sx={{
@@ -153,44 +193,71 @@ const ManageDepartmentsPage = () => {
           <Grid container spacing={2}>
             {departments.map((department) => (
               <Grid item xs={12} key={department.id}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => navigate(`/department/${department.name}`)}
+                <Box
                   sx={{
-                    justifyContent: 'flex-start',
+                    display: 'flex',
+                    alignItems: 'center',
                     p: 2,
-                    textTransform: 'none',
+                    border: 1,
                     borderColor: theme.palette.divider,
+                    borderRadius: 1,
                     '&:hover': {
                       borderColor: theme.palette.primary.main,
                       backgroundColor: theme.palette.action.hover
                     }
                   }}
                 >
-                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography 
-                      variant="h6"
-                      color="text.primary"
-                    >
-                      {department.name}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PeopleIcon color="action" />
-                        <Typography variant="body2" color="text.secondary">
-                          {department.numberOfEmployees} {t.employees}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <EventBusyIcon color="action" />
-                        <Typography variant="body2" color="text.secondary">
-                          {t.maxSimultaneousLeaves}: {department.maxEmployeesOnLeave}
-                        </Typography>
+                  <Button
+                    fullWidth
+                    variant="text"
+                    onClick={() => navigate(`/department/${department.name}`)}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      textTransform: 'none',
+                      flex: 1
+                    }}
+                  >
+                    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography 
+                        variant="h6"
+                        color="text.primary"
+                      >
+                        {department.name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PeopleIcon color="action" />
+                          <Typography variant="body2" color="text.secondary">
+                            {department.numberOfEmployees} {t.employees}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <EventBusyIcon color="action" />
+                          <Typography variant="body2" color="text.secondary">
+                            {t.maxSimultaneousLeaves}: {department.maxEmployeesOnLeave}
+                          </Typography>
+                        </Box>
                       </Box>
                     </Box>
-                  </Box>
-                </Button>
+                  </Button>
+                  <Tooltip 
+                    title={department.numberOfEmployees > 0 
+                      ? `Cannot delete department with ${department.numberOfEmployees} employee(s)` 
+                      : 'Delete department'
+                    }
+                  >
+                    <span>
+                      <IconButton
+                        onClick={() => openDeleteDialog(department)}
+                        disabled={department.numberOfEmployees > 0}
+                        color="error"
+                        sx={{ ml: 1 }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
               </Grid>
             ))}
           </Grid>
@@ -269,6 +336,58 @@ const ManageDepartmentsPage = () => {
             }}
           >
             {t.create}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Department Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={closeDeleteDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {t.deleteDepartment || 'Delete Department'}
+          <IconButton
+            aria-label="close"
+            onClick={closeDeleteDialog}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+          )}
+          <Typography sx={{ mt: 2 }}>
+            {t.deleteDepartmentConfirmation || 'Are you sure you want to delete the department'} 
+            <strong> {departmentToDelete?.name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t.deleteDepartmentWarning || 'This action cannot be undone.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={closeDeleteDialog}
+            disabled={deleteLoading}
+          >
+            {t.cancel}
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error"
+            onClick={handleDeleteDepartment}
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={16} /> : <DeleteIcon />}
+          >
+            {deleteLoading ? (t.deleting || 'Deleting...') : (t.delete || 'Delete')}
           </Button>
         </DialogActions>
       </Dialog>

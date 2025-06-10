@@ -122,7 +122,19 @@
     "admin": "Administrator",
     "paidLeaveDays": "Zile de Concediu Plătit",
     "employee": "Angajat",
-    "remainingPaidLeaveDays": "Zile de concediu plătit rămase"
+    "remainingPaidLeaveDays": "Zile de concediu plătit rămase",
+    "failedToUpdateDepartment": "Actualizarea departamentului a eșuat",
+    "recurring": "Eveniment Recurent",
+    "recurrenceFrequency": "Frecvența Recurenței",
+    "everyWeekOnSelectedDay": "În fiecare săptămână în ziua selectată",
+    "everyMonthOnSelectedDate": "În fiecare lună în data selectată",
+    "everyYearOnSameDay": "În fiecare an în aceeași zi",
+    "eventType": "Tip Eveniment",
+    "personalEvent": "Eveniment Personal",
+    "publicEvent": "Eveniment Public",
+    "createdBy": "Creat de",
+    "publicHoliday": "Sărbătoare Legală",
+    "holidayDescription": "Aceasta este o sărbătoare legală în România. Majoritatea întreprinderilor și birourilor guvernamentale sunt închise."
   },
   "login": {
     "title": "Bine ai revenit",
@@ -169,10 +181,7 @@
     "theme": {
       "title": "Temă",
       "light": "Luminoasă",
-      "dark": "Întunecată",
-      "green": "Verde",
-      "blue": "Albastră",
-      "darkBlue": "Albastru Închis"
+      "dark": "Întunecată"
     },
     "language": {
       "title": "Limbă",

@@ -41,12 +41,33 @@ const ProfilePage = () => {
   const fileInputRef = useRef(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-
-  // List of all departments
-  const departments = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Management'];
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState('');
 
   // Check if current user is admin
   const isAdmin = user?.status === 'admin';
+
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/departments', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        setDepartments(response.data.departments.map(dept => dept.name));
+        setDepartmentsLoading(false);
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+        setDepartmentsError(err.response?.data?.message || 'Failed to fetch departments');
+        setDepartmentsLoading(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   // Add effect to fetch complete profile data
   useEffect(() => {
@@ -544,7 +565,7 @@ const ProfilePage = () => {
                     size="small"
                     sx={{ mb: 1 }}
                   />
-                  <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                  <FormControl fullWidth size="small" sx={{ mb: 1 }} error={!!departmentsError}>
                     <InputLabel id="department-label">{t.department}</InputLabel>
                     <Select
                       labelId="department-label"
@@ -552,13 +573,30 @@ const ProfilePage = () => {
                       value={editedUser.department}
                       onChange={handleInputChange}
                       label={t.department}
+                      disabled={departmentsLoading}
                     >
-                      {departments.map((dept) => (
-                        <MenuItem key={dept} value={dept}>
-                          {dept}
+                      {departmentsLoading ? (
+                        <MenuItem disabled>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CircularProgress size={16} />
+                            <Typography variant="body2">Loading departments...</Typography>
+                          </Box>
                         </MenuItem>
-                      ))}
+                      ) : departments.length === 0 ? (
+                        <MenuItem disabled>No departments available</MenuItem>
+                      ) : (
+                        departments.map((dept) => (
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
+                        ))
+                      )}
                     </Select>
+                    {departmentsError && (
+                      <Typography color="error" variant="caption" sx={{ ml: 2, mt: 0.5 }}>
+                        {departmentsError}
+                      </Typography>
+                    )}
                   </FormControl>
                 </>
               ) : (

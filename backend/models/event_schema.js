@@ -49,6 +49,31 @@ const eventSchema = new mongoose.Schema({
       },
       message: props => `${props.value} is not a valid time format! Use HH:mm (24-hour format)`
     }
+  },
+  // Event type field
+  type: {
+    type: String,
+    enum: ['personal', 'public'],
+    required: true,
+    default: 'personal'
+  },
+  // Recurring event fields
+  recurring: {
+    type: Boolean,
+    default: false
+  },
+  frequency: {
+    type: String,
+    enum: ['weekly', 'monthly', 'yearly'],
+    required: function() {
+      return this.recurring === true;
+    }
+  },
+  originalDate: {
+    type: Date,
+    required: function() {
+      return this.recurring === true;
+    }
   }
 }, {
   timestamps: true  // Adds createdAt and updatedAt fields

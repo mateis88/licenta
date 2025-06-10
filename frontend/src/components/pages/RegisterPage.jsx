@@ -9,7 +9,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  CircularProgress
 } from '@mui/material';
 import ratone from '../../assets/El_ratone.jpg';
 import starryNight from '../../assets/starry_night.jpg';
@@ -26,15 +27,9 @@ const RegisterPage = () => {
   const t = translations.register;
   const common = translations.common;
 
-  const departments = [
-    'IT',
-    'HR',
-    'Finance',
-    'Marketing',
-    'Sales',
-    'Operations',
-    'Management'
-  ];
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState('');
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -46,6 +41,23 @@ const RegisterPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  // Fetch departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/departments');
+        setDepartments(response.data.departments.map(dept => dept.name));
+        setDepartmentsLoading(false);
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+        setDepartmentsError(err.response?.data?.message || 'Failed to fetch departments');
+        setDepartmentsLoading(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -249,23 +261,35 @@ const RegisterPage = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <FormControl fullWidth size="small" error={!!errors.department}>
+                <FormControl fullWidth size="small" error={!!errors.department || !!departmentsError}>
                   <InputLabel sx={{ fontSize: '0.9rem' }}>{common.department}</InputLabel>
                   <Select
                     value={formData.department}
                     onChange={(e) => handleChange('department', e.target.value)}
                     label={common.department}
                     sx={{ fontSize: '0.9rem' }}
+                    disabled={departmentsLoading}
                   >
-                    {departments.map((dept) => (
-                      <MenuItem key={dept} value={dept} sx={{ fontSize: '0.9rem' }}>
-                        {dept}
+                    {departmentsLoading ? (
+                      <MenuItem disabled>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={16} />
+                          <Typography variant="body2">Loading departments...</Typography>
+                        </Box>
                       </MenuItem>
-                    ))}
+                    ) : departments.length === 0 ? (
+                      <MenuItem disabled>No departments available</MenuItem>
+                    ) : (
+                      departments.map((dept) => (
+                        <MenuItem key={dept} value={dept} sx={{ fontSize: '0.9rem' }}>
+                          {dept}
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
-                  {errors.department && (
+                  {(errors.department || departmentsError) && (
                     <Typography color="error" variant="caption" sx={{ fontSize: '0.75rem', ml: 2, mt: 0.5 }}>
-                      {errors.department}
+                      {errors.department || departmentsError}
                     </Typography>
                   )}
                 </FormControl>

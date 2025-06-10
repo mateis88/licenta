@@ -41,7 +41,22 @@ const validateEvent = [
         .withMessage('Invalid start time format (use HH:mm)'),
     body('endTime')
         .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
-        .withMessage('Invalid end time format (use HH:mm)')
+        .withMessage('Invalid end time format (use HH:mm)'),
+    body('type')
+        .isIn(['personal', 'public'])
+        .withMessage('Event type must be personal or public'),
+    body('recurring')
+        .optional()
+        .isBoolean()
+        .withMessage('Recurring must be a boolean'),
+    body('frequency')
+        .optional()
+        .isIn(['weekly', 'monthly', 'yearly'])
+        .withMessage('Frequency must be weekly, monthly, or yearly'),
+    body('originalDate')
+        .optional()
+        .isISO8601()
+        .withMessage('Invalid original date format')
 ];
 
 // Log validation errors

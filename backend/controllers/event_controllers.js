@@ -7,7 +7,9 @@ const createEvent = async (req, res, next) => {
         console.log('[Event Controller] Creating new event:', {
             email: req.body.email,
             name: req.body.name,
-            date: req.body.date
+            date: req.body.date,
+            recurring: req.body.recurring,
+            type: req.body.type
         });
 
         const errors = validationResult(req);
@@ -18,7 +20,7 @@ const createEvent = async (req, res, next) => {
             throw error;
         }
 
-        const event = new Event({
+        const baseEventData = {
             email: req.body.email,
             name: req.body.name,
             description: req.body.description,
@@ -26,8 +28,18 @@ const createEvent = async (req, res, next) => {
             location: req.body.location,
             startTime: req.body.startTime,
             endTime: req.body.endTime,
-            guests: req.body.guests || []
-        });
+            guests: req.body.guests || [],
+            type: req.body.type || 'personal'
+        };
+
+        // Add recurring event data if it's a recurring event
+        if (req.body.recurring) {
+            baseEventData.recurring = true;
+            baseEventData.frequency = req.body.frequency;
+            baseEventData.originalDate = new Date(req.body.originalDate || req.body.date);
+        }
+
+        const event = new Event(baseEventData);
 
         // Validate time range
         if (!event.isValidTimeRange()) {
@@ -56,18 +68,35 @@ const createEvent = async (req, res, next) => {
     }
 };
 
-// Get all events for a user
+// Get all events for a user (personal events + all public events)
 const getUserEvents = async (req, res, next) => {
     try {
         console.log('[Event Controller] Fetching events for user:', req.params.email);
 
-        const events = await Event.find({ email: req.params.email })
-            .sort({ date: 1, startTime: 1 });
+        // Get personal events created by the user
+        const personalEvents = await Event.find({ 
+            email: req.params.email,
+            type: 'personal'
+        });
 
-        console.log('[Event Controller] Found events:', events.length);
+        // Get all public events
+        const publicEvents = await Event.find({ 
+            type: 'public'
+        });
+
+        // Combine and sort all events
+        const allEvents = [...personalEvents, ...publicEvents].sort((a, b) => {
+            return new Date(a.date) - new Date(b.date);
+        });
+
+        console.log('[Event Controller] Found events:', {
+            personal: personalEvents.length,
+            public: publicEvents.length,
+            total: allEvents.length
+        });
 
         res.status(200).json({
-            events: events
+            events: allEvents
         });
     } catch (err) {
         console.error('[Event Controller] Error fetching events:', {
@@ -100,7 +129,7 @@ const deleteEvent = async (req, res, next) => {
             throw error;
         }
 
-        // Check if the user is the owner of the event
+        // Check if the user is the owner of the event (can delete both personal and public events they created)
         if (event.email !== req.user.email) {
             console.log('[Event Controller] Unauthorized delete attempt:', {
                 eventEmail: event.email,
@@ -118,7 +147,7 @@ const deleteEvent = async (req, res, next) => {
         });
 
         res.status(200).json({
-            message: 'Event deleted successfully',
+            message: event.recurring ? 'Recurring event deleted successfully' : 'Event deleted successfully',
             eventId: deletedEvent._id
         });
     } catch (err) {

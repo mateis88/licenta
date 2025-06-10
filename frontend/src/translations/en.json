@@ -122,7 +122,19 @@
     "admin": "Admin",
     "paidLeaveDays": "Paid Leave Days",
     "employee": "Employee",
-    "remainingPaidLeaveDays": "Remaining Paid Leave Days"
+    "remainingPaidLeaveDays": "Remaining Paid Leave Days",
+    "failedToUpdateDepartment": "Failed to update department",
+    "recurring": "Recurring Event",
+    "recurrenceFrequency": "Recurrence Frequency",
+    "everyWeekOnSelectedDay": "Every week on the selected weekday",
+    "everyMonthOnSelectedDate": "Every month on the selected date",
+    "everyYearOnSameDay": "Every year on the same day",
+    "eventType": "Event Type",
+    "personalEvent": "Personal Event",
+    "publicEvent": "Public Event",
+    "createdBy": "Created by",
+    "publicHoliday": "Public Holiday",
+    "holidayDescription": "This is a public holiday in Romania. Most businesses and government offices are closed."
   },
   "login": {
     "title": "Welcome Back",
@@ -169,10 +181,7 @@
     "theme": {
       "title": "Theme",
       "light": "Light",
-      "dark": "Dark",
-      "green": "Green",
-      "blue": "Blue",
-      "darkBlue": "Dark Blue"
+      "dark": "Dark"
     },
     "language": {
       "title": "Language",

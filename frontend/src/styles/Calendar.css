@@ -171,7 +171,6 @@
     background-color: rgba(33, 150, 243, 0.1) !important;
     color: #1976d2 !important;
     z-index: 1 !important; /* Lower z-index to allow leave styles to show */
-    pointer-events: none;
   }
   
   /* Current day outline */

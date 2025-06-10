@@ -28,50 +28,6 @@ const themes = {
       },
     },
   },
-  green: {
-    palette: {
-      mode: 'light',
-      primary: {
-        main: '#00AE58',
-      },
-      background: {
-        default: '#1b5e20',
-        paper: '#00AE58',
-      },
-    },
-  },
-  blue: {
-    palette: {
-      mode: 'light',
-      primary: {
-        main: '#1976d2',
-      },
-      background: {
-        default: '#90caf9',
-        paper: '#00A3E1',
-      },
-      text: {
-        primary: '#001440',
-        secondary: '#001440',
-      },
-    },
-  },
-  darkBlue: {
-    palette: {
-      mode: 'light',
-      primary: {
-        main: '#64b5f6',
-      },
-      background: {
-        default: '#1a237e',
-        paper: '#283593',
-      },
-      text: {
-        primary: '#90caf9',
-        secondary: '#bbdefb',
-      },
-    },
-  },
 };
 
 const translations = {
@@ -84,7 +40,7 @@ const SettingsContext = createContext();
 export const SettingsProvider = ({ children }) => {
   const [currentTheme, setCurrentTheme] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
-    return savedTheme || 'light';
+    return savedTheme || 'dark';
   });
 
   const [currentLanguage, setCurrentLanguage] = useState(() => {
