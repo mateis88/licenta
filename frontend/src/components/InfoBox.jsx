@@ -25,7 +25,10 @@ import {
   FormLabel,
   Select,
   MenuItem,
-  InputLabel
+  InputLabel,
+  Chip,
+  Autocomplete,
+  InputAdornment
 } from "@mui/material";
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import CakeIcon from '@mui/icons-material/Cake';
@@ -38,7 +41,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import PersonIcon from '@mui/icons-material/Person';
 import PublicIcon from '@mui/icons-material/Public';
+import LockIcon from '@mui/icons-material/Lock';
 import CelebrationIcon from '@mui/icons-material/Celebration';
+import SearchIcon from '@mui/icons-material/Search';
+import GroupIcon from '@mui/icons-material/Group';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCalendar } from '../contexts/CalendarContext';
@@ -69,10 +75,17 @@ const InfoBox = ({ date, onClose }) => {
     guests: [],
     recurring: false,
     frequency: 'weekly',
-    type: 'personal'
+    type: 'personal',
+    invitations: [],
+    inviteDepartment: ''
   });
   const [eventError, setEventError] = useState('');
   const [expandedEvents, setExpandedEvents] = useState({});
+  const [allUsers, setAllUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
 
   // Check if the date is in the past
   const isPastDate = () => {
@@ -173,6 +186,45 @@ const InfoBox = ({ date, onClose }) => {
     fetchEvents();
   }, [date, user?.email]);
 
+  // Fetch users and departments when event form is opened
+  useEffect(() => {
+    const fetchUsersAndDepartments = async () => {
+      if (!showEventForm) return;
+      
+      try {
+        setLoadingUsers(true);
+        
+        // Fetch users for invitations
+        const usersResponse = await axios.get(
+          'http://localhost:3000/users-for-invitations',
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        setAllUsers(usersResponse.data.users);
+
+        // Fetch departments
+        const departmentsResponse = await axios.get(
+          'http://localhost:3000/departments',
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        setDepartments(departmentsResponse.data.departments);
+      } catch (err) {
+        console.error('Error fetching users and departments:', err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchUsersAndDepartments();
+  }, [showEventForm]);
+
   const handleEventFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setEventForm(prev => ({
@@ -193,6 +245,14 @@ const InfoBox = ({ date, onClose }) => {
     if (!eventForm.startTime || !eventForm.endTime) {
       setEventError(t.timeRequired);
       return false;
+    }
+
+    // Validate private event invitations
+    if (eventForm.type === 'private') {
+      if (!eventForm.invitations.length && !eventForm.inviteDepartment) {
+        setEventError(t.privateEventInvitationsRequired || 'Please invite at least one person or select a department');
+        return false;
+      }
     }
 
     // Convert times to minutes for comparison
@@ -224,6 +284,15 @@ const InfoBox = ({ date, onClose }) => {
         email: user.email
       };
 
+      // Add private event data if it's a private event
+      if (eventForm.type === 'private') {
+        if (eventForm.invitations.length > 0) {
+          eventData.invitations = eventForm.invitations;
+        } else if (eventForm.inviteDepartment) {
+          eventData.inviteDepartment = eventForm.inviteDepartment;
+        }
+      }
+
       // Add recurring event data if it's a recurring event
       if (eventForm.recurring) {
         eventData.recurring = true;
@@ -254,7 +323,9 @@ const InfoBox = ({ date, onClose }) => {
         guests: [],
         recurring: false,
         frequency: 'weekly',
-        type: 'personal'
+        type: 'personal',
+        invitations: [],
+        inviteDepartment: ''
       });
       setShowEventForm(false);
 
@@ -346,13 +417,57 @@ const InfoBox = ({ date, onClose }) => {
     if (newTime) {
       const hours = newTime.getHours().toString().padStart(2, '0');
       const minutes = newTime.getMinutes().toString().padStart(2, '0');
-      const timeString = `${hours}:${minutes}`;
-      
       setEventForm(prev => ({
         ...prev,
-        [name]: timeString
+        [name]: `${hours}:${minutes}`
+      }));
+    } else {
+      setEventForm(prev => ({
+        ...prev,
+        [name]: ''
       }));
     }
+  };
+
+  // Helper functions for private events
+  const filteredUsers = allUsers.filter(user => {
+    const matchesSearch = user.fullName.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(userSearchTerm.toLowerCase());
+    const matchesDepartment = selectedDepartment === 'all' || user.department === selectedDepartment;
+    return matchesSearch && matchesDepartment;
+  });
+
+  const handleAddInvitation = (userId) => {
+    setEventForm(prev => ({
+      ...prev,
+      invitations: [...prev.invitations, userId]
+    }));
+  };
+
+  const handleRemoveInvitation = (userId) => {
+    setEventForm(prev => ({
+      ...prev,
+      invitations: prev.invitations.filter(id => id !== userId)
+    }));
+  };
+
+  const handleInviteDepartment = (department) => {
+    setEventForm(prev => ({
+      ...prev,
+      inviteDepartment: department,
+      invitations: [] // Clear individual invitations when inviting department
+    }));
+  };
+
+  const handleClearDepartmentInvitation = () => {
+    setEventForm(prev => ({
+      ...prev,
+      inviteDepartment: ''
+    }));
+  };
+
+  const getInvitedUsers = () => {
+    return allUsers.filter(user => eventForm.invitations.includes(user.id));
   };
 
   return (
@@ -682,6 +797,24 @@ const InfoBox = ({ date, onClose }) => {
                             {t.createdBy || 'Created by'}: {event.email}
                           </Typography>
                         )}
+                        {event.type === 'private' && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              mt: 1
+                            }}
+                          >
+                            <LockIcon fontSize="small" />
+                            {event.inviteDepartment ? 
+                              `${t.privateEventDepartment || 'Private event'} - ${t.invitedDepartment || 'Invited department'}: ${event.inviteDepartment}` :
+                              `${t.privateEvent || 'Private event'} - ${t.invitedUsers || 'Invited users'}: ${event.invitations?.length || 0}`
+                            }
+                          </Typography>
+                        )}
                         {event.recurring && (
                           <Typography 
                             variant="body2" 
@@ -739,6 +872,12 @@ const InfoBox = ({ date, onClose }) => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <PublicIcon fontSize="small" />
                           {t.publicEvent || 'Public Event'}
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="private">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <LockIcon fontSize="small" />
+                          {t.privateEvent || 'Private Event'}
                         </Box>
                       </MenuItem>
                     </Select>
@@ -857,6 +996,153 @@ const InfoBox = ({ date, onClose }) => {
                         />
                       </RadioGroup>
                     </FormControl>
+                  </Grid>
+                )}
+                {eventForm.type === 'private' && (
+                  <Grid item xs={12}>
+                    <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LockIcon fontSize="small" />
+                        {t.invitations || 'Invitations'}
+                      </Typography>
+                      
+                      {/* Department Invitation Option */}
+                      <Box sx={{ mb: 3 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                          {t.inviteEntireDepartment || 'Invite Entire Department'}
+                        </Typography>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>{t.selectDepartment || 'Select Department'}</InputLabel>
+                          <Select
+                            value={eventForm.inviteDepartment}
+                            onChange={(e) => handleInviteDepartment(e.target.value)}
+                            label={t.selectDepartment || 'Select Department'}
+                          >
+                            <MenuItem value="">
+                              <em>{t.none || 'None'}</em>
+                            </MenuItem>
+                            {departments.map((dept) => (
+                              <MenuItem key={dept.name} value={dept.name}>
+                                {dept.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        {eventForm.inviteDepartment && (
+                          <Box sx={{ mt: 1 }}>
+                            <Chip
+                              label={`Inviting all ${eventForm.inviteDepartment} members`}
+                              onDelete={handleClearDepartmentInvitation}
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </Box>
+                        )}
+                      </Box>
+
+                      {/* Individual Invitations */}
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                          {t.individualInvitations || 'Individual Invitations'}
+                        </Typography>
+                        
+                        {/* Search and Filter */}
+                        <Box sx={{ mb: 2 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            placeholder={t.searchUsers || 'Search users by name or email...'}
+                            value={userSearchTerm}
+                            onChange={(e) => setUserSearchTerm(e.target.value)}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        </Box>
+                        
+                        <Box sx={{ mb: 2 }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>{t.filterByDepartment || 'Filter by Department'}</InputLabel>
+                            <Select
+                              value={selectedDepartment}
+                              onChange={(e) => setSelectedDepartment(e.target.value)}
+                              label={t.filterByDepartment || 'Filter by Department'}
+                            >
+                              <MenuItem value="all">{t.allDepartments || 'All Departments'}</MenuItem>
+                              {departments.map((dept) => (
+                                <MenuItem key={dept.name} value={dept.name}>
+                                  {dept.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+
+                        {/* Users List */}
+                        <Box sx={{ maxHeight: 200, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                          {loadingUsers ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                              <CircularProgress size={24} />
+                            </Box>
+                          ) : (
+                            <List dense>
+                              {filteredUsers.map((user) => {
+                                const isInvited = eventForm.invitations.includes(user.id);
+                                return (
+                                  <ListItem
+                                    key={user.id}
+                                    sx={{
+                                      borderBottom: 1,
+                                      borderColor: 'divider',
+                                      '&:last-child': { borderBottom: 0 }
+                                    }}
+                                  >
+                                    <ListItemText
+                                      primary={user.fullName}
+                                      secondary={`${user.email} • ${user.department}`}
+                                    />
+                                    <ListItemSecondaryAction>
+                                      <Button
+                                        variant={isInvited ? "outlined" : "contained"}
+                                        size="small"
+                                        onClick={() => isInvited ? handleRemoveInvitation(user.id) : handleAddInvitation(user.id)}
+                                        color={isInvited ? "error" : "primary"}
+                                      >
+                                        {isInvited ? (t.remove || 'Remove') : (t.add || 'Add')}
+                                      </Button>
+                                    </ListItemSecondaryAction>
+                                  </ListItem>
+                                );
+                              })}
+                            </List>
+                          )}
+                        </Box>
+
+                        {/* Selected Invitations */}
+                        {eventForm.invitations.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                              {t.selectedInvitations || 'Selected Invitations'} ({eventForm.invitations.length})
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                              {getInvitedUsers().map((user) => (
+                                <Chip
+                                  key={user.id}
+                                  label={user.fullName}
+                                  onDelete={() => handleRemoveInvitation(user.id)}
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
                   </Grid>
                 )}
                 {eventError && (

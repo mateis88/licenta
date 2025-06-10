@@ -140,6 +140,9 @@ router.use('/events', eventRoutes);
 // Get all employees (admin only)
 router.get('/employees', authenticateToken, user_controllers.getAllEmployees);
 
+// Get all users for event invitations (all authenticated users)
+router.get('/users-for-invitations', authenticateToken, user_controllers.getUsersForInvitations);
+
 // Department routes
 router.get('/departments', authenticateToken, async (req, res, next) => {
     try {

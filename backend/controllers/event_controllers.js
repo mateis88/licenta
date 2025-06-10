@@ -32,6 +32,15 @@ const createEvent = async (req, res, next) => {
             type: req.body.type || 'personal'
         };
 
+        // Add private event data if it's a private event
+        if (req.body.type === 'private') {
+            if (req.body.invitations && req.body.invitations.length > 0) {
+                baseEventData.invitations = req.body.invitations;
+            } else if (req.body.inviteDepartment) {
+                baseEventData.inviteDepartment = req.body.inviteDepartment;
+            }
+        }
+
         // Add recurring event data if it's a recurring event
         if (req.body.recurring) {
             baseEventData.recurring = true;
@@ -68,7 +77,7 @@ const createEvent = async (req, res, next) => {
     }
 };
 
-// Get all events for a user (personal events + all public events)
+// Get all events for a user (personal events + all public events + private events where invited)
 const getUserEvents = async (req, res, next) => {
     try {
         console.log('[Event Controller] Fetching events for user:', req.params.email);
@@ -84,14 +93,28 @@ const getUserEvents = async (req, res, next) => {
             type: 'public'
         });
 
+        // Get private events where user is invited individually
+        const privateEventsInvited = await Event.find({ 
+            type: 'private',
+            invitations: req.userId
+        });
+
+        // Get private events where user's department is invited
+        const privateEventsDepartment = await Event.find({ 
+            type: 'private',
+            inviteDepartment: req.user.department
+        });
+
         // Combine and sort all events
-        const allEvents = [...personalEvents, ...publicEvents].sort((a, b) => {
+        const allEvents = [...personalEvents, ...publicEvents, ...privateEventsInvited, ...privateEventsDepartment].sort((a, b) => {
             return new Date(a.date) - new Date(b.date);
         });
 
         console.log('[Event Controller] Found events:', {
             personal: personalEvents.length,
             public: publicEvents.length,
+            privateInvited: privateEventsInvited.length,
+            privateDepartment: privateEventsDepartment.length,
             total: allEvents.length
         });
 

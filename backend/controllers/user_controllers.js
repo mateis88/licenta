@@ -479,6 +479,34 @@ exports.getAllEmployees = async (req, res, next) => {
     }
 };
 
+// Get all users for event invitations (all authenticated users)
+exports.getUsersForInvitations = async (req, res, next) => {
+    try {
+        // Get all users except passwords, sorted by name
+        const users = await User.find().select('firstName lastName email department').sort({ firstName: 1, lastName: 1 });
+
+        // Transform user data for invitations
+        const usersForInvitations = users.map(user => ({
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            department: user.department,
+            fullName: `${user.firstName} ${user.lastName}`
+        }));
+
+        res.status(200).json({
+            message: 'Users for invitations retrieved successfully',
+            users: usersForInvitations
+        });
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
+};
+
 // Validate token controller
 exports.validateToken = async (req, res, next) => {
     try {

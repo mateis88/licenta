@@ -43,8 +43,8 @@ const validateEvent = [
         .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
         .withMessage('Invalid end time format (use HH:mm)'),
     body('type')
-        .isIn(['personal', 'public'])
-        .withMessage('Event type must be personal or public'),
+        .isIn(['personal', 'public', 'private'])
+        .withMessage('Event type must be personal, public, or private'),
     body('recurring')
         .optional()
         .isBoolean()
@@ -56,7 +56,15 @@ const validateEvent = [
     body('originalDate')
         .optional()
         .isISO8601()
-        .withMessage('Invalid original date format')
+        .withMessage('Invalid original date format'),
+    body('invitations')
+        .optional()
+        .isArray()
+        .withMessage('Invitations must be an array'),
+    body('inviteDepartment')
+        .optional()
+        .isString()
+        .withMessage('Invite department must be a string')
 ];
 
 // Log validation errors

@@ -53,9 +53,21 @@ const eventSchema = new mongoose.Schema({
   // Event type field
   type: {
     type: String,
-    enum: ['personal', 'public'],
+    enum: ['personal', 'public', 'private'],
     required: true,
     default: 'personal'
+  },
+  // Invitation fields for private events
+  invitations: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'  // Reference to the User model for each invited user
+  }],
+  // Invite all department members (alternative to individual invitations)
+  inviteDepartment: {
+    type: String,
+    required: function() {
+      return this.type === 'private' && (!this.invitations || this.invitations.length === 0);
+    }
   },
   // Recurring event fields
   recurring: {
