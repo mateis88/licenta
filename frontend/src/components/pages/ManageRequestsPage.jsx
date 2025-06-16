@@ -23,7 +23,14 @@ import {
   DialogActions,
   Button,
   TextField,
-  InputAdornment
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  Divider,
+  Badge
 } from '@mui/material';
 import HomeHeader from '../HomeHeader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,6 +43,11 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import { format } from 'date-fns';
 import SearchIcon from '@mui/icons-material/Search';
 import RestoreIcon from '@mui/icons-material/Restore';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import ImageIcon from '@mui/icons-material/Image';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
 
 const ManageRequestsPage = () => {
   const theme = useTheme();
@@ -51,6 +63,8 @@ const ManageRequestsPage = () => {
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionType, setActionType] = useState(''); // 'approve' or 'reject' or 'reverse'
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  const [selectedRequestForDocs, setSelectedRequestForDocs] = useState(null);
 
   // Status chip colors
   const statusColors = {
@@ -72,6 +86,24 @@ const ManageRequestsPage = () => {
     paid: t.paidLeave,
     unpaid: t.unpaidLeave,
     study: t.studyLeave
+  };
+
+  // Get file icon based on file extension
+  const getFileIcon = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return <PictureAsPdfIcon color="error" />;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+        return <ImageIcon color="primary" />;
+      case 'doc':
+      case 'docx':
+        return <DescriptionIcon color="info" />;
+      default:
+        return <DescriptionIcon />;
+    }
   };
 
   // Filter requests based on search query
@@ -125,12 +157,28 @@ const ManageRequestsPage = () => {
   }, [user?.email, t]);
 
   const handleDownloadDocument = (document) => {
-    const link = document.createElement('a');
-    link.href = `http://localhost:3000/${document.path}`;
-    link.download = document.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.href = `http://localhost:3000/${document.path}`;
+      link.download = document.filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('[Frontend] Error downloading document:', error);
+      setError('Failed to download document');
+    }
+  };
+
+  const handleViewDocuments = (request) => {
+    setSelectedRequestForDocs(request);
+    setDocumentsDialogOpen(true);
+  };
+
+  const handleCloseDocumentsDialog = () => {
+    setDocumentsDialogOpen(false);
+    setSelectedRequestForDocs(null);
   };
 
   const formatDate = (dateString) => {
@@ -201,10 +249,8 @@ const ManageRequestsPage = () => {
 
       const response = await axios.patch(
         `http://localhost:3000/requests/${selectedRequest._id}/status`,
-        { 
-          status: actionType === 'approve' ? 'approved' : 
-                 actionType === 'reject' ? 'rejected' : 
-                 'pending' 
+        {
+          status: actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'pending'
         },
         {
           headers: {
@@ -213,17 +259,10 @@ const ManageRequestsPage = () => {
         }
       );
 
-      console.log('[Frontend] Request status update response:', {
-        status: response.status,
-        data: response.data,
-        user: response.data.user,
-        paidLeaveDays: response.data.user?.paidLeaveDays,
-        request: response.data.request
-      });
+      console.log('[Frontend] Request status updated successfully:', response.data);
 
-      // Update the user state with the new paid leave days
+      // Update user data if it was returned
       if (response.data.user) {
-        console.log('[Frontend] Updating user state with:', response.data.user);
         setUser(response.data.user);
       } else {
         console.warn('[Frontend] No user data in response:', response.data);
@@ -358,17 +397,25 @@ const ManageRequestsPage = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {request.documents?.map((doc, index) => (
-                          <Tooltip key={index} title={t.downloadDocument || 'Download Document'}>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDownloadDocument(doc)}
-                              sx={{ ml: index > 0 ? 1 : 0 }}
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        ))}
+                        {request.documents && request.documents.length > 0 ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Badge badgeContent={request.documents.length} color="primary">
+                              <Tooltip title={t.viewDocuments || 'View Documents'}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewDocuments(request)}
+                                  color="primary"
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Badge>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            {t.noDocuments || 'No documents'}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         {getActionButtons(request)}
@@ -417,6 +464,65 @@ const ManageRequestsPage = () => {
               : actionType === 'reject'
               ? t.reject || 'Reject'
               : t.reverse || 'Reverse'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Documents View Dialog */}
+      <Dialog
+        open={documentsDialogOpen}
+        onClose={handleCloseDocumentsDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">
+              {t.documents || 'Documents'} - {selectedRequestForDocs?.email?.firstName} {selectedRequestForDocs?.email?.lastName}
+            </Typography>
+            <IconButton onClick={handleCloseDocumentsDialog}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedRequestForDocs?.documents && selectedRequestForDocs.documents.length > 0 ? (
+            <List>
+              {selectedRequestForDocs.documents.map((doc, index) => (
+                <React.Fragment key={index}>
+                  <ListItem>
+                    <ListItemIcon>
+                      {getFileIcon(doc.filename)}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={doc.filename}
+                      secondary={doc.uploadDate ? format(new Date(doc.uploadDate), 'dd/MM/yyyy HH:mm') : ''}
+                    />
+                    <ListItemSecondaryAction>
+                      <Tooltip title={t.downloadDocument || 'Download Document'}>
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleDownloadDocument(doc)}
+                          color="primary"
+                        >
+                          <DownloadIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                  {index < selectedRequestForDocs.documents.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+              {t.noDocuments || 'No documents available'}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDocumentsDialog} color="primary">
+            {t.close || 'Close'}
           </Button>
         </DialogActions>
       </Dialog>
