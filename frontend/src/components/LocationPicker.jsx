@@ -42,6 +42,12 @@ const LocationPicker = ({
   
   const mapRef = useRef(null);
   const searchInputRef = useRef(null);
+  const searchQueryRef = useRef('');
+
+  // Update ref when search query changes
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
 
   // Initialize Google Maps
   useEffect(() => {
@@ -103,14 +109,17 @@ const LocationPicker = ({
         if (searchInputRef.current) {
           const autocompleteInstance = new window.google.maps.places.Autocomplete(searchInputRef.current, {
             types: ['establishment', 'geocode'],
-            componentRestrictions: { country: 'ro' } // Restrict to Romania
+            componentRestrictions: { country: 'ro' }, // Restrict to Romania
+            fields: ['formatted_address', 'name', 'geometry']
           });
 
           autocompleteInstance.addListener('place_changed', () => {
             const place = autocompleteInstance.getPlace();
-            if (place.geometry) {
+            console.log('Autocomplete place selected:', place);
+            
+            if (place.geometry && place.geometry.location) {
               const location = {
-                name: place.formatted_address || place.name,
+                name: place.formatted_address || place.name || searchQuery,
                 latitude: place.geometry.location.lat(),
                 longitude: place.geometry.location.lng()
               };
@@ -119,11 +128,54 @@ const LocationPicker = ({
               markerInstance.setPosition(place.geometry.location);
               mapInstance.setCenter(place.geometry.location);
               mapInstance.setZoom(15);
+              setError(''); // Clear any previous errors
+            } else {
+              setError('Selected place has no valid location. Please try searching manually.');
             }
           });
 
           setAutocomplete(autocompleteInstance);
         }
+
+        // Add manual search functionality
+        const handleManualSearch = () => {
+          const currentSearchQuery = searchQueryRef.current; // Use ref for current value
+          
+          if (!currentSearchQuery.trim()) {
+            setError('Please enter a location to search for.');
+            return;
+          }
+
+          setError(''); // Clear previous errors
+          setLoading(true); // Show loading state
+          
+          const geocoder = new window.google.maps.Geocoder();
+          geocoder.geocode({ 
+            address: currentSearchQuery,
+            componentRestrictions: { country: 'ro' }
+          }, (results, status) => {
+            setLoading(false); // Hide loading state
+            
+            if (status === 'OK' && results[0]) {
+              const location = {
+                name: results[0].formatted_address,
+                latitude: results[0].geometry.location.lat(),
+                longitude: results[0].geometry.location.lng()
+              };
+              
+              setSelectedLocation(location);
+              markerInstance.setPosition(results[0].geometry.location);
+              mapInstance.setCenter(results[0].geometry.location);
+              mapInstance.setZoom(15);
+              setError(''); // Clear any previous errors
+            } else {
+              setError('Location not found. Please try a different search term or check your spelling.');
+            }
+          });
+        };
+
+        // Store the search function for later use
+        window.handleLocationSearch = handleManualSearch;
 
         // Add click listener to map
         mapInstance.addListener('click', (event) => {
@@ -268,6 +320,10 @@ const LocationPicker = ({
         // Clean up map instance
         setMap(null);
       }
+      // Clean up global search function
+      if (window.handleLocationSearch) {
+        delete window.handleLocationSearch;
+      }
     };
   }, []);
 
@@ -306,11 +362,35 @@ const LocationPicker = ({
               fullWidth
               placeholder={t.searchLocation || "Search for a location..."}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setError(''); // Clear any previous errors
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (window.handleLocationSearch) {
+                    window.handleLocationSearch();
+                  }
+                }
+              }}
               InputProps={{
                 startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
               }}
             />
+            <Button
+              variant="outlined"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.handleLocationSearch) {
+                  window.handleLocationSearch();
+                }
+              }}
+              sx={{ minWidth: 'auto', px: 2 }}
+            >
+              {t.search || "Search"}
+            </Button>
             <Button
               variant="outlined"
               onClick={handleCurrentLocation}
@@ -343,7 +423,7 @@ const LocationPicker = ({
               width: '100%',
               height: '100%',
               minHeight: '400px',
-              display: loading || error ? 'none' : 'block'
+              display: 'block' // Always show the map container
             }}
           />
           {loading && (
@@ -357,49 +437,32 @@ const LocationPicker = ({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'background.paper'
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              zIndex: 1
             }}>
               <CircularProgress />
             </Box>
           )}
           {error && (
             <Box sx={{ 
-              p: 3, 
-              textAlign: 'center',
               position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'background.paper',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
+              top: 16,
+              left: 16,
+              right: 16,
+              zIndex: 2
             }}>
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                You can still enter a location manually:
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="Enter location name..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (e.target.value.trim()) {
-                    setSelectedLocation({
-                      name: e.target.value,
-                      latitude: 0,
-                      longitude: 0
-                    });
-                  } else {
-                    setSelectedLocation(null);
+              <Alert 
+                severity="error" 
+                onClose={() => setError('')}
+                sx={{ 
+                  boxShadow: 2,
+                  '& .MuiAlert-message': {
+                    fontSize: '0.875rem'
                   }
                 }}
-                sx={{ mb: 2 }}
-              />
+              >
+                {error}
+              </Alert>
             </Box>
           )}
         </Box>

@@ -165,12 +165,17 @@
     "invitedDepartment": "Invited department",
     "invitedUsers": "Invited users",
     "searchLocation": "Search for a location...",
+    "search": "Search",
     "currentLocation": "Current",
     "selectedLocation": "Selected:",
     "confirmLocation": "Confirm Location",
     "selectLocation": "Select Location",
     "changeLocation": "Change",
-    "selectEventLocation": "Select Event Location"
+    "selectEventLocation": "Select Event Location",
+    "editEvent": "Edit Event",
+    "updateEvent": "Update Event",
+    "eventLocation": "Event Location",
+    "noLocationAvailable": "No location available"
   },
   "login": {
     "title": "Welcome Back",
@@ -230,6 +235,18 @@
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"
     ],
-    "weekDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    "weekDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "legendTitle": "Calendar Legend",
+    "timeOff": "Time Off",
+    "specialDays": "Special Days",
+    "indicators": "Indicators",
+    "approvedLeave": "Approved Leave",
+    "pendingLeave": "Pending Leave",
+    "currentDay": "Current Day",
+    "selectedDay": "Selected Day",
+    "weekendHoliday": "Weekend/Holiday",
+    "holidayIndicator": "Public Holiday",
+    "eventIndicator": "Event",
+    "birthdayIndicator": "Birthday"
   }
 } 

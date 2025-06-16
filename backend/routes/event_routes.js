@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { createEvent, getUserEvents, deleteEvent } = require('../controllers/event_controllers');
+const { createEvent, getUserEvents, deleteEvent, updateEvent } = require('../controllers/event_controllers');
 const { authenticateToken } = require('../middleware/auth');
 const { validationResult } = require('express-validator');
 
@@ -90,6 +90,9 @@ const logValidationErrors = (req, res, next) => {
 
 // Create new event
 router.post('/', logRequest, authenticateToken, validateEvent, logValidationErrors, createEvent);
+
+// Update an event
+router.put('/:eventId', logRequest, authenticateToken, validateEvent, logValidationErrors, updateEvent);
 
 // Get all events for a user
 router.get('/user/:email', authenticateToken, getUserEvents);

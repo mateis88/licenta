@@ -462,7 +462,7 @@ const Calendar = () => {
               {/* Time Off Section */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontFamily: '"Roboto Slab", serif', mb: 1, color: theme.palette.text.secondary }}>
-                  Time Off
+                  {t.timeOff || 'Time Off'}
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {/* Approved Leave */}
@@ -486,7 +486,7 @@ const Calendar = () => {
               {/* Special Days Section */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontFamily: '"Roboto Slab", serif', mb: 1, color: theme.palette.text.secondary }}>
-                  Special Days
+                  {t.specialDays || 'Special Days'}
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {/* Current Day */}
@@ -518,7 +518,7 @@ const Calendar = () => {
               {/* Indicators Section */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontFamily: '"Roboto Slab", serif', mb: 1, color: theme.palette.text.secondary }}>
-                  Indicators
+                  {t.indicators || 'Indicators'}
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {/* Holiday Indicator */}

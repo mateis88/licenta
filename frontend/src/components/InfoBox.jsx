@@ -46,12 +46,14 @@ import CelebrationIcon from '@mui/icons-material/Celebration';
 import SearchIcon from '@mui/icons-material/Search';
 import GroupIcon from '@mui/icons-material/Group';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import EditIcon from '@mui/icons-material/Edit';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCalendar } from '../contexts/CalendarContext';
 import { isRecurringEventOccurrence } from '../utils/recurringEvents';
 import { isPublicHoliday, getHolidayName } from '../utils/holidays';
 import LocationPicker from './LocationPicker';
+import EventMap from './EventMap';
 import axios from 'axios';
 import "../styles/InfoBox.css";
 
@@ -93,6 +95,8 @@ const InfoBox = ({ date, onClose }) => {
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Check if the date is in the past
   const isPastDate = () => {
@@ -268,6 +272,35 @@ const InfoBox = ({ date, onClose }) => {
     setLocationPickerOpen(true);
   };
 
+  const handleEditEvent = (event) => {
+    // Convert event data to form format
+    const eventData = {
+      name: event.name,
+      description: event.description || '',
+      location: event.location?.name ? {
+        name: event.location.name,
+        latitude: event.location.latitude || 0,
+        longitude: event.location.longitude || 0
+      } : {
+        name: event.location || '',
+        latitude: 0,
+        longitude: 0
+      },
+      startTime: event.startTime,
+      endTime: event.endTime,
+      type: event.type,
+      recurring: event.recurring || false,
+      frequency: event.frequency || 'weekly',
+      invitations: event.invitations || [],
+      inviteDepartment: event.inviteDepartment || ''
+    };
+
+    setEventForm(eventData);
+    setEditingEvent(event);
+    setIsEditing(true);
+    setShowEventForm(true);
+  };
+
   const resetEventForm = () => {
     setEventForm({
       name: '',
@@ -287,6 +320,8 @@ const InfoBox = ({ date, onClose }) => {
       inviteDepartment: ''
     });
     setEventError('');
+    setEditingEvent(null);
+    setIsEditing(false);
   };
 
   const closeEventForm = () => {
@@ -361,18 +396,41 @@ const InfoBox = ({ date, onClose }) => {
         eventData.originalDate = date.toISOString();
       }
 
-      const response = await axios.post(
-        'http://localhost:3000/events',
-        eventData,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+      let response;
+      if (isEditing && editingEvent) {
+        // Update existing event
+        response = await axios.put(
+          `http://localhost:3000/events/${editingEvent._id}`,
+          eventData,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
           }
-        }
-      );
+        );
+      } else {
+        // Create new event
+        response = await axios.post(
+          'http://localhost:3000/events',
+          eventData,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+      }
       
-      // Add the new event to the list
-      setEvents(prev => [...prev, response.data.event]);
+      // Update the events list
+      if (isEditing && editingEvent) {
+        setEvents(prev => prev.map(event => 
+          event._id === editingEvent._id 
+            ? { ...response.data.event, _id: editingEvent._id }
+            : event
+        ));
+      } else {
+        setEvents(prev => [...prev, response.data.event]);
+      }
       
       // Reset form and hide it
       closeEventForm();
@@ -788,15 +846,28 @@ const InfoBox = ({ date, onClose }) => {
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {!isPastDate() && event.email === user.email && (
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteEvent(event._id);
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            <>
+                              <IconButton 
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditEvent(event);
+                                }}
+                                color="primary"
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton 
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteEvent(event._id);
+                                }}
+                                color="error"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </>
                           )}
                           <IconButton size="small">
                             {expandedEvents[event._id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -827,8 +898,20 @@ const InfoBox = ({ date, onClose }) => {
                             gap: 1
                           }}
                         >
+                          <LocationOnIcon fontSize="small" />
+                          {event.location?.name || event.location}
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: theme.palette.text.secondary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
                           <EventIcon fontSize="small" />
-                          {`${event.location?.name || event.location} • ${event.startTime} - ${event.endTime}`}
+                          {`${event.startTime} - ${event.endTime}`}
                         </Typography>
                         {event.type === 'public' && (
                           <Typography 
@@ -880,6 +963,12 @@ const InfoBox = ({ date, onClose }) => {
                             {event.frequency === 'yearly' && (t.everyYearOnSameDay || 'Every year on the same day')}
                           </Typography>
                         )}
+                        
+                        {/* Event Location Map */}
+                        <EventMap 
+                          location={event.location} 
+                          height={120}
+                        />
                       </Box>
                     </Collapse>
                   </Paper>
@@ -893,7 +982,7 @@ const InfoBox = ({ date, onClose }) => {
             <Box sx={{ p: 2, mt: 2, backgroundColor: theme.palette.background.default, borderRadius: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
-                  {t.createEvent}
+                  {isEditing ? (t.editEvent || 'Edit Event') : (t.createEvent || 'Create Event')}
                 </Typography>
                 <IconButton onClick={closeEventForm} size="small">
                   <CloseIcon />
@@ -1256,7 +1345,7 @@ const InfoBox = ({ date, onClose }) => {
                     fullWidth
                     sx={{ mt: 1 }}
                   >
-                    {t.create}
+                    {isEditing ? (t.updateEvent || 'Update Event') : (t.create || 'Create')}
                   </Button>
                 </Grid>
               </Grid>

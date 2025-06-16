@@ -187,8 +187,126 @@ const deleteEvent = async (req, res, next) => {
     }
 };
 
+// Update an event
+const updateEvent = async (req, res, next) => {
+    try {
+        const eventId = req.params.eventId;
+        console.log('[Event Controller] Updating event:', {
+            eventId,
+            userEmail: req.user.email,
+            updateData: req.body
+        });
+
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            const error = new Error('Validation failed');
+            error.statusCode = 422;
+            error.data = errors.array();
+            throw error;
+        }
+
+        const event = await Event.findById(eventId);
+        
+        if (!event) {
+            console.log('[Event Controller] Event not found:', eventId);
+            const error = new Error('Event not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Check if the user is the owner of the event
+        if (event.email !== req.user.email) {
+            console.log('[Event Controller] Unauthorized update attempt:', {
+                eventEmail: event.email,
+                userEmail: req.user.email
+            });
+            const error = new Error('Not authorized to update this event');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // Prepare update data
+        const updateData = {
+            name: req.body.name,
+            description: req.body.description,
+            location: req.body.location,
+            startTime: req.body.startTime,
+            endTime: req.body.endTime,
+            type: req.body.type
+        };
+
+        // Add private event data if it's a private event
+        if (req.body.type === 'private') {
+            if (req.body.invitations && req.body.invitations.length > 0) {
+                updateData.invitations = req.body.invitations;
+                updateData.inviteDepartment = null;
+            } else if (req.body.inviteDepartment) {
+                updateData.inviteDepartment = req.body.inviteDepartment;
+                updateData.invitations = [];
+            }
+        } else {
+            // Clear private event data for non-private events
+            updateData.invitations = [];
+            updateData.inviteDepartment = null;
+        }
+
+        // Add recurring event data if it's a recurring event
+        if (req.body.recurring) {
+            updateData.recurring = true;
+            updateData.frequency = req.body.frequency;
+            if (req.body.originalDate) {
+                updateData.originalDate = new Date(req.body.originalDate);
+            }
+        } else {
+            updateData.recurring = false;
+            updateData.frequency = null;
+            updateData.originalDate = null;
+        }
+
+        // Validate time range
+        const tempEvent = new Event({
+            ...event.toObject(),
+            ...updateData
+        });
+        
+        if (!tempEvent.isValidTimeRange()) {
+            const error = new Error('End time must be after start time');
+            error.statusCode = 422;
+            throw error;
+        }
+
+        const updatedEvent = await Event.findByIdAndUpdate(
+            eventId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        console.log('[Event Controller] Event updated successfully:', {
+            eventId,
+            updatedEvent
+        });
+
+        res.status(200).json({
+            message: 'Event updated successfully',
+            event: updatedEvent
+        });
+    } catch (err) {
+        console.error('[Event Controller] Error updating event:', {
+            error: err.message,
+            stack: err.stack,
+            eventId: req.params.eventId
+        });
+        
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
+};
+
 module.exports = {
     createEvent,
     getUserEvents,
-    deleteEvent
+    deleteEvent,
+    updateEvent
 }; 

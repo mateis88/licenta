@@ -150,12 +150,17 @@
     "publicHoliday": "Sărbătoare Legală",
     "holidayDescription": "Aceasta este o sărbătoare legală în România. Majoritatea întreprinderilor și birourilor guvernamentale sunt închise.",
     "searchLocation": "Caută o locație...",
+    "search": "Caută",
     "currentLocation": "Actuală",
     "selectedLocation": "Selectată:",
     "confirmLocation": "Confirmă Locația",
     "selectLocation": "Selectează Locația",
     "changeLocation": "Schimbă",
-    "selectEventLocation": "Selectează Locația Evenimentului"
+    "selectEventLocation": "Selectează Locația Evenimentului",
+    "editEvent": "Editează Evenimentul",
+    "updateEvent": "Actualizează Evenimentul",
+    "eventLocation": "Locația Evenimentului",
+    "noLocationAvailable": "Locația nu este disponibilă"
   },
   "login": {
     "title": "Bine ai revenit",
@@ -215,6 +220,18 @@
       "Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie",
       "Iulie", "August", "Septembrie", "Octombrie", "Noiembrie", "Decembrie"
     ],
-    "weekDays": ["Lun", "Mar", "Mie", "Joi", "Vin", "Sâm", "Dum"]
+    "weekDays": ["Lun", "Mar", "Mie", "Joi", "Vin", "Sâm", "Dum"],
+    "legendTitle": "Legenda Calendarului",
+    "timeOff": "Concedii",
+    "specialDays": "Zile Speciale",
+    "indicators": "Indicatori",
+    "approvedLeave": "Concediu Aprobat",
+    "pendingLeave": "Concediu în Așteptare",
+    "currentDay": "Ziua Curentă",
+    "selectedDay": "Ziua Selectată",
+    "weekendHoliday": "Weekend/Sărbătoare",
+    "holidayIndicator": "Sărbătoare Legală",
+    "eventIndicator": "Eveniment",
+    "birthdayIndicator": "Zi de Naștere"
   }
 } 
