@@ -215,31 +215,31 @@ const ManageDepartmentsPage = () => {
                       justifyContent: 'flex-start',
                       textTransform: 'none',
                       flex: 1
-                    }}
-                  >
-                    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography 
-                        variant="h6"
-                        color="text.primary"
-                      >
-                        {department.name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <PeopleIcon color="action" />
-                          <Typography variant="body2" color="text.secondary">
-                            {department.numberOfEmployees} {t.employees}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <EventBusyIcon color="action" />
-                          <Typography variant="body2" color="text.secondary">
-                            {t.maxSimultaneousLeaves}: {department.maxEmployeesOnLeave}
-                          </Typography>
-                        </Box>
+                  }}
+                >
+                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography 
+                      variant="h6"
+                      color="text.primary"
+                    >
+                      {department.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PeopleIcon color="action" />
+                        <Typography variant="body2" color="text.secondary">
+                          {department.numberOfEmployees} {t.employees}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <EventBusyIcon color="action" />
+                        <Typography variant="body2" color="text.secondary">
+                          {t.maxSimultaneousLeaves}: {department.maxEmployeesOnLeave}
+                        </Typography>
                       </Box>
                     </Box>
-                  </Button>
+                  </Box>
+                </Button>
                   <Tooltip 
                     title={department.numberOfEmployees > 0 
                       ? `Cannot delete department with ${department.numberOfEmployees} employee(s)` 

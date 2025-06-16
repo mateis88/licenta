@@ -281,9 +281,9 @@ const RegisterPage = () => {
                       <MenuItem disabled>No departments available</MenuItem>
                     ) : (
                       departments.map((dept) => (
-                        <MenuItem key={dept} value={dept} sx={{ fontSize: '0.9rem' }}>
-                          {dept}
-                        </MenuItem>
+                      <MenuItem key={dept} value={dept} sx={{ fontSize: '0.9rem' }}>
+                        {dept}
+                      </MenuItem>
                       ))
                     )}
                   </Select>

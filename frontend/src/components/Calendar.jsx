@@ -193,16 +193,16 @@ const Calendar = () => {
     const hasEvent = events.some(event => {
       // For non-recurring events, check exact date match
       if (!event.recurring) {
-        const eventDate = new Date(event.date);
-        console.log('[Calendar] Comparing with event date:', eventDate.toISOString());
-        const isMatch = eventDate.getDate() === date.getDate() &&
-          eventDate.getMonth() === date.getMonth() &&
-          eventDate.getFullYear() === date.getFullYear();
-        
-        if (isMatch) {
-          console.log('[Calendar] Found matching event:', event);
-        }
-        return isMatch;
+      const eventDate = new Date(event.date);
+      console.log('[Calendar] Comparing with event date:', eventDate.toISOString());
+      const isMatch = eventDate.getDate() === date.getDate() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getFullYear() === date.getFullYear();
+      
+      if (isMatch) {
+        console.log('[Calendar] Found matching event:', event);
+      }
+      return isMatch;
       } else {
         // For recurring events, check if this date is an occurrence
         const isOccurrence = isRecurringEventOccurrence(event, date);

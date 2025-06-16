@@ -45,11 +45,13 @@ import LockIcon from '@mui/icons-material/Lock';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import SearchIcon from '@mui/icons-material/Search';
 import GroupIcon from '@mui/icons-material/Group';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCalendar } from '../contexts/CalendarContext';
 import { isRecurringEventOccurrence } from '../utils/recurringEvents';
 import { isPublicHoliday, getHolidayName } from '../utils/holidays';
+import LocationPicker from './LocationPicker';
 import axios from 'axios';
 import "../styles/InfoBox.css";
 
@@ -69,7 +71,11 @@ const InfoBox = ({ date, onClose }) => {
   const [eventForm, setEventForm] = useState({
     name: '',
     description: '',
-    location: '',
+    location: {
+      name: '',
+      latitude: null,
+      longitude: null
+    },
     startTime: '',
     endTime: '',
     guests: [],
@@ -86,6 +92,7 @@ const InfoBox = ({ date, onClose }) => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
   // Check if the date is in the past
   const isPastDate = () => {
@@ -227,10 +234,64 @@ const InfoBox = ({ date, onClose }) => {
 
   const handleEventFormChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    if (name.includes('.')) {
+      // Handle nested object properties like location.name
+      const [parent, child] = name.split('.');
+      setEventForm(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setEventForm(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+    
+    if (eventError) {
+      setEventError('');
+    }
+  };
+
+  const handleLocationSelect = (location) => {
     setEventForm(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      location: location
     }));
+  };
+
+  const openLocationPicker = () => {
+    setLocationPickerOpen(true);
+  };
+
+  const resetEventForm = () => {
+    setEventForm({
+      name: '',
+      description: '',
+      location: {
+        name: '',
+        latitude: null,
+        longitude: null
+      },
+      startTime: '',
+      endTime: '',
+      guests: [],
+      recurring: false,
+      frequency: 'weekly',
+      type: 'personal',
+      invitations: [],
+      inviteDepartment: ''
+    });
+    setEventError('');
+  };
+
+  const closeEventForm = () => {
+    setShowEventForm(false);
+    resetEventForm();
   };
 
   const validateEventForm = () => {
@@ -238,7 +299,7 @@ const InfoBox = ({ date, onClose }) => {
       setEventError(t.eventNameRequired);
       return false;
     }
-    if (!eventForm.location.trim()) {
+    if (!eventForm.location.name.trim()) {
       setEventError(t.locationRequired);
       return false;
     }
@@ -314,20 +375,7 @@ const InfoBox = ({ date, onClose }) => {
       setEvents(prev => [...prev, response.data.event]);
       
       // Reset form and hide it
-      setEventForm({
-        name: '',
-        description: '',
-        location: '',
-        startTime: '',
-        endTime: '',
-        guests: [],
-        recurring: false,
-        frequency: 'weekly',
-        type: 'personal',
-        invitations: [],
-        inviteDepartment: ''
-      });
-      setShowEventForm(false);
+      closeEventForm();
 
       // Refresh events
       refreshEvents();
@@ -780,7 +828,7 @@ const InfoBox = ({ date, onClose }) => {
                           }}
                         >
                           <EventIcon fontSize="small" />
-                          {`${event.location} • ${event.startTime} - ${event.endTime}`}
+                          {`${event.location?.name || event.location} • ${event.startTime} - ${event.endTime}`}
                         </Typography>
                         {event.type === 'public' && (
                           <Typography 
@@ -847,7 +895,7 @@ const InfoBox = ({ date, onClose }) => {
                 <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
                   {t.createEvent}
                 </Typography>
-                <IconButton onClick={() => setShowEventForm(false)} size="small">
+                <IconButton onClick={closeEventForm} size="small">
                   <CloseIcon />
                 </IconButton>
               </Box>
@@ -907,15 +955,63 @@ const InfoBox = ({ date, onClose }) => {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label={t.location}
-                    name="location"
-                    value={eventForm.location}
-                    onChange={handleEventFormChange}
-                    required
-                    size="small"
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      {t.location} *
+                    </Typography>
+                    {eventForm.location.name ? (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1, 
+                        p: 2, 
+                        border: 1, 
+                        borderColor: 'primary.main', 
+                        borderRadius: 1,
+                        bgcolor: 'primary.light',
+                        color: 'primary.contrastText'
+                      }}>
+                        <LocationOnIcon />
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {eventForm.location.name}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={openLocationPicker}
+                          sx={{ 
+                            color: 'primary.contrastText',
+                            borderColor: 'primary.contrastText',
+                            '&:hover': {
+                              borderColor: 'primary.contrastText',
+                              bgcolor: 'primary.main'
+                            }
+                          }}
+                        >
+                          {t.changeLocation || 'Change'}
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={openLocationPicker}
+                        startIcon={<LocationOnIcon />}
+                        sx={{ 
+                          py: 1.5,
+                          borderStyle: 'dashed',
+                          borderColor: 'text.secondary',
+                          color: 'text.secondary',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            color: 'primary.main'
+                          }
+                        }}
+                      >
+                        {t.selectLocation || 'Select Location'}
+                      </Button>
+                    )}
+                  </Box>
                 </Grid>
                 <Grid item xs={6}>
                   <TimePicker
@@ -1193,6 +1289,16 @@ const InfoBox = ({ date, onClose }) => {
           </Button>
         </Box>
       )}
+
+      {/* Location Picker Dialog */}
+      <LocationPicker
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onChange={handleLocationSelect}
+        value={eventForm.location}
+        label={t.selectEventLocation || "Select Event Location"}
+        required={true}
+      />
     </Paper>
   );
 };

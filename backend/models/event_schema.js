@@ -20,9 +20,19 @@ const eventSchema = new mongoose.Schema({
     required: true
   },
   location: {
-    type: String,
-    required: true,
-    trim: true
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    latitude: {
+      type: Number,
+      required: true
+    },
+    longitude: {
+      type: Number,
+      required: true
+    }
   },
   guests: [{
     type: mongoose.Schema.Types.ObjectId,

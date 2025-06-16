@@ -148,7 +148,14 @@
     "publicEvent": "Eveniment Public",
     "createdBy": "Creat de",
     "publicHoliday": "Sărbătoare Legală",
-    "holidayDescription": "Aceasta este o sărbătoare legală în România. Majoritatea întreprinderilor și birourilor guvernamentale sunt închise."
+    "holidayDescription": "Aceasta este o sărbătoare legală în România. Majoritatea întreprinderilor și birourilor guvernamentale sunt închise.",
+    "searchLocation": "Caută o locație...",
+    "currentLocation": "Actuală",
+    "selectedLocation": "Selectată:",
+    "confirmLocation": "Confirmă Locația",
+    "selectLocation": "Selectează Locația",
+    "changeLocation": "Schimbă",
+    "selectEventLocation": "Selectează Locația Evenimentului"
   },
   "login": {
     "title": "Bine ai revenit",

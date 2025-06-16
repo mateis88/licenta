@@ -163,7 +163,14 @@
     "privateEventInvitationsRequired": "Please invite at least one person or select a department",
     "privateEventDepartment": "Private event",
     "invitedDepartment": "Invited department",
-    "invitedUsers": "Invited users"
+    "invitedUsers": "Invited users",
+    "searchLocation": "Search for a location...",
+    "currentLocation": "Current",
+    "selectedLocation": "Selected:",
+    "confirmLocation": "Confirm Location",
+    "selectLocation": "Select Location",
+    "changeLocation": "Change",
+    "selectEventLocation": "Select Event Location"
   },
   "login": {
     "title": "Welcome Back",

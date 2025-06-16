@@ -33,9 +33,18 @@ const validateEvent = [
         .isISO8601()
         .withMessage('Invalid date format'),
     body('location')
+        .isObject()
+        .withMessage('Location must be an object'),
+    body('location.name')
         .trim()
         .notEmpty()
-        .withMessage('Location is required'),
+        .withMessage('Location name is required'),
+    body('location.latitude')
+        .isFloat({ min: -90, max: 90 })
+        .withMessage('Invalid latitude value'),
+    body('location.longitude')
+        .isFloat({ min: -180, max: 180 })
+        .withMessage('Invalid longitude value'),
     body('startTime')
         .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
         .withMessage('Invalid start time format (use HH:mm)'),

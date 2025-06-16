@@ -188,9 +188,9 @@ const ManageEmployees = () => {
                     <MenuItem disabled>No departments available</MenuItem>
                   ) : (
                     departments.map((dept) => (
-                      <MenuItem key={dept} value={dept}>
-                        {dept}
-                      </MenuItem>
+                    <MenuItem key={dept} value={dept}>
+                      {dept}
+                    </MenuItem>
                     ))
                   )}
                 </Select>
